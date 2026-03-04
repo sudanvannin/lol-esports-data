@@ -8,7 +8,7 @@ following the Medallion architecture.
 import asyncio
 import json
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -31,6 +31,7 @@ class CollectorConfig:
     minio_secret_key: str = "minio123"
     bronze_bucket: str = "bronze"
     local_backup_dir: str = "data/bronze"
+    use_s3: bool = False
 
 
 class BronzeStorage:
@@ -40,6 +41,7 @@ class BronzeStorage:
         self.config = config
         self.local_dir = Path(config.local_backup_dir)
         self.local_dir.mkdir(parents=True, exist_ok=True)
+        self.use_s3 = config.use_s3
 
         self._s3_client = None
 
@@ -67,7 +69,6 @@ class BronzeStorage:
         data_type: str,
         identifier: str,
         timestamp: datetime | None = None,
-        use_s3: bool = True,
     ) -> str:
         """
         Save JSON data to Bronze layer.
@@ -77,7 +78,6 @@ class BronzeStorage:
             data_type: Type of data (leagues, tournaments, matches, games)
             identifier: Unique identifier for the file
             timestamp: Timestamp for partitioning (defaults to now)
-            use_s3: Whether to upload to S3/MinIO
 
         Returns:
             Path/key where data was saved
@@ -93,7 +93,7 @@ class BronzeStorage:
 
         logger.debug(f"Saved locally: {local_file}")
 
-        if use_s3:
+        if self.use_s3:
             try:
                 s3_key = self._get_s3_key(data_type, identifier, timestamp)
                 self.s3_client.put_object(
@@ -114,13 +114,12 @@ class BronzeStorage:
         file_path: str | Path,
         data_type: str,
         identifier: str,
-        use_s3: bool = True,
     ) -> str:
         """Upload a CSV file to Bronze layer."""
         file_path = Path(file_path)
         timestamp = datetime.utcnow()
 
-        if use_s3:
+        if self.use_s3:
             try:
                 s3_key = f"{data_type}/{timestamp.strftime('%Y/%m/%d')}/{identifier}.csv"
                 self.s3_client.upload_file(
@@ -152,7 +151,7 @@ class LeaguesCollector:
                 logger.info(f"Fetched {len(leagues)} leagues")
 
                 for league in leagues:
-                    league_dict = asdict(league)
+                    league_dict = league.model_dump(mode="json")
                     results["leagues"].append(league_dict)
 
                     self.storage.save_json(
@@ -166,7 +165,7 @@ class LeaguesCollector:
                         logger.info(f"Fetched {len(tournaments)} tournaments for {league.name}")
 
                         for tournament in tournaments:
-                            tournament_dict = asdict(tournament)
+                            tournament_dict = tournament.model_dump(mode="json")
                             results["tournaments"].append(tournament_dict)
 
                             self.storage.save_json(
@@ -215,7 +214,7 @@ class MatchesCollector:
                     logger.info(f"Fetched {len(matches)} matches for league {league_id}")
 
                     for match in matches:
-                        match_dict = asdict(match)
+                        match_dict = match.model_dump(mode="json")
                         results["matches"].append(match_dict)
 
                         self.storage.save_json(

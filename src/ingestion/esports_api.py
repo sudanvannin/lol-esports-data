@@ -41,6 +41,11 @@ FEED_BASE_URL = "https://feed.lolesports.com/livestats/v1"
 
 DEFAULT_API_KEY = "0TvQnueqKa5mxJntVWt0w4LpLfEkrV1Ta8rQBb9Z"
 
+DEFAULT_HEADERS = {
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+}
+
 
 class APIError(Exception):
     """Base exception for API errors."""
@@ -142,7 +147,7 @@ class LoLEsportsClient:
                     slug=league_data["slug"],
                     name=league_data["name"],
                     region=league_data.get("region", ""),
-                    image=league_data.get("image"),
+                    image_url=league_data.get("image"),
                     priority=league_data.get("priority", 0),
                 )
             )
