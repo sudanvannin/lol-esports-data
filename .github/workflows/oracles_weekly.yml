@@ -34,7 +34,7 @@ jobs:
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           # Assuming you create a small script or adapt collectors.py to run only Oracle's Elixir
-          python scripts/download_oracle.py
+          python -m scripts.download_oracle
 
       - name: Run Silver Processing (Games/Matches Transformations)
         run: |

@@ -33,7 +33,7 @@ jobs:
       - name: Run Bronze Ingestion (LoL Esports API)
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          python src/ingestion/collectors.py
+          python -m src.ingestion.collectors
 
       - name: Run Silver Processing (Spark/Pandas)
         run: |
