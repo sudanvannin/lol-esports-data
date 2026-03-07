@@ -313,6 +313,11 @@ class SilverGamesTransformer:
         logger.info("SILVER LAYER - GAMES & PLAYERS")
         logger.info("=" * 60)
         
+        csv_files = list(self.bronze_path.glob("*_LoL_esports_match_data_from_OraclesElixir.csv"))
+        if not csv_files:
+            logger.warning(f"No Oracle's Elixir CSV found in {self.bronze_path}. Skipping games/players built.")
+            return {}
+        
         files = {}
         
         files['games'] = self.create_games_table()

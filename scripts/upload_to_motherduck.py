@@ -41,14 +41,22 @@ def upload_to_motherduck(token: str, db_name: str = "lolesports"):
             return False
             
         # 1. Upload Players Table
-        players_path = silver_dir / "players" / "**" / "*.parquet"
-        logger.info("Creating 'players' table in MotherDuck...")
-        con.execute(f"CREATE OR REPLACE TABLE players AS SELECT * FROM '{players_path}'")
+        players_dir = silver_dir / "players"
+        if players_dir.exists() and any(players_dir.iterdir()):
+            players_path = players_dir / "**" / "*.parquet"
+            logger.info("Creating 'players' table in MotherDuck...")
+            con.execute(f"CREATE OR REPLACE TABLE players AS SELECT * FROM '{players_path}'")
+        else:
+            logger.info("Skipping 'players' table upload (no local data).")
         
         # 2. Upload Games Table
-        games_path = silver_dir / "games" / "**" / "*.parquet"
-        logger.info("Creating 'games' table in MotherDuck...")
-        con.execute(f"CREATE OR REPLACE TABLE games AS SELECT * FROM '{games_path}'")
+        games_dir = silver_dir / "games"
+        if games_dir.exists() and any(games_dir.iterdir()):
+            games_path = games_dir / "**" / "*.parquet"
+            logger.info("Creating 'games' table in MotherDuck...")
+            con.execute(f"CREATE OR REPLACE TABLE games AS SELECT * FROM '{games_path}'")
+        else:
+            logger.info("Skipping 'games' table upload (no local data).")
         
         # 3. Upload Series Table
         series_path = silver_dir / "series.parquet"
