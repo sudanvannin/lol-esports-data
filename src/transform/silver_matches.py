@@ -501,6 +501,11 @@ class SilverMatchesTransformer:
         """Run full Silver transformation pipeline."""
         logger.info("Starting Silver transformation...")
         
+        csv_files = list(self.bronze_path.glob("*_LoL_esports_match_data_from_OraclesElixir.csv"))
+        if not csv_files:
+            logger.warning(f"No Oracle's Elixir CSV found in {self.bronze_path}. Skipping series/champions built.")
+            return {}
+        
         self.transform_matches_to_series()
         self.infer_tournament_phases()
         self.extract_champions()
