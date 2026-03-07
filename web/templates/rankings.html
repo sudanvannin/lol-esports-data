@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Rankings - LoL Esports Stats{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-6">Player Rankings</h1>
+
+<!-- Filters -->
+<form action="/rankings" method="get" class="flex flex-wrap items-center gap-3 mb-6 bg-gray-900 border border-gray-800 rounded-lg p-4">
+    <div>
+        <label class="text-xs text-gray-500 block mb-1">Stat</label>
+        <select name="stat" class="bg-gray-800 text-gray-200 text-sm px-3 py-1.5 rounded border border-gray-700">
+            {% for s in ['kda', 'winrate', 'dpm', 'cspm', 'gd15', 'kills', 'vision'] %}
+            <option value="{{ s }}" {% if stat == s %}selected{% endif %}>{{ s|upper }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="text-xs text-gray-500 block mb-1">Position</label>
+        <select name="position" class="bg-gray-800 text-gray-200 text-sm px-3 py-1.5 rounded border border-gray-700">
+            <option value="">All</option>
+            {% for p in ['top', 'jng', 'mid', 'bot', 'sup'] %}
+            <option value="{{ p }}" {% if position == p %}selected{% endif %}>{{ p|upper }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="text-xs text-gray-500 block mb-1">League</label>
+        <select name="league" class="bg-gray-800 text-gray-200 text-sm px-3 py-1.5 rounded border border-gray-700">
+            <option value="">All</option>
+            {% for l in available_leagues[:30] %}
+            <option value="{{ l }}" {% if league == l %}selected{% endif %}>{{ l }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="text-xs text-gray-500 block mb-1">Year</label>
+        <select name="year" class="bg-gray-800 text-gray-200 text-sm px-3 py-1.5 rounded border border-gray-700">
+            <option value="">All</option>
+            {% for y in available_years %}
+            <option value="{{ y|int }}" {% if year == y|int %}selected{% endif %}>{{ y|int }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="text-xs text-gray-500 block mb-1">Split</label>
+        <select name="split" class="bg-gray-800 text-gray-200 text-sm px-3 py-1.5 rounded border border-gray-700">
+            <option value="">All</option>
+            {% for s in available_splits %}
+            <option value="{{ s }}" {% if split == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label class="text-xs text-gray-500 block mb-1">Min Games</label>
+        <input type="number" name="min_games" value="{{ min_games }}" min="1" max="500"
+               class="bg-gray-800 text-gray-200 text-sm px-3 py-1.5 rounded border border-gray-700 w-20">
+    </div>
+    <div class="self-end">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-sm px-4 py-1.5 rounded">Filter</button>
+    </div>
+</form>
+
+<!-- Rankings Table -->
+<div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
+            <tr>
+                <th class="px-3 py-2 text-center w-12">#</th>
+                <th class="px-3 py-2 text-left">Player</th>
+                <th class="px-3 py-2 text-center">Pos</th>
+                <th class="px-3 py-2 text-left">Team</th>
+                <th class="px-3 py-2 text-left">League</th>
+                <th class="px-3 py-2 text-center">Games</th>
+                <th class="px-3 py-2 text-center">WR</th>
+                <th class="px-3 py-2 text-center bg-blue-900/20">{{ stat|upper }}</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+            {% for r in rankings %}
+            <tr class="hover:bg-gray-800/50">
+                <td class="px-3 py-2 text-center text-gray-500 font-semibold">{{ loop.index }}</td>
+                <td class="px-3 py-2">
+                    <a href="/player/{{ r.playername }}" class="text-blue-400 hover:text-blue-300 font-semibold">{{ r.playername }}</a>
+                </td>
+                <td class="px-3 py-2 text-center text-gray-500 uppercase text-xs">{{ r.position }}</td>
+                <td class="px-3 py-2">
+                    <a href="/team/{{ r.teamname }}" class="text-gray-300 hover:underline">{{ r.teamname }}</a>
+                </td>
+                <td class="px-3 py-2 text-gray-400">{{ r.league }}</td>
+                <td class="px-3 py-2 text-center">{{ r.games|int }}</td>
+                <td class="px-3 py-2 text-center {% if r.winrate > 55 %}text-green-400{% elif r.winrate < 45 %}text-red-400{% endif %}">{{ r.winrate }}%</td>
+                <td class="px-3 py-2 text-center font-bold bg-blue-900/10">{{ r.value }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

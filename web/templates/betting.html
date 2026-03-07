@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}Betting Stats — LoL Esports{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-yellow-400 flex items-center gap-2">⚡ Betting Stats</h1>
+    <p class="text-gray-400 text-sm mt-1">Aggregated team metrics for LoL Esports betting markets.</p>
+</div>
+
+{# ──────────── FILTERS ──────────── #}
+<form method="get" action="/betting"
+    class="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-6 flex flex-wrap gap-3 items-end">
+    <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-400">League</label>
+        <select name="league"
+            class="bg-gray-800 text-sm text-gray-200 px-3 py-1.5 rounded border border-gray-700 focus:outline-none focus:border-yellow-500">
+            <option value="">All Leagues</option>
+            {% for l in available_leagues %}
+            <option value="{{ l }}" {% if league==l %}selected{% endif %}>{{ l }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-400">Year</label>
+        <select name="year"
+            class="bg-gray-800 text-sm text-gray-200 px-3 py-1.5 rounded border border-gray-700 focus:outline-none focus:border-yellow-500">
+            <option value="">All Years</option>
+            {% for y in available_years %}
+            <option value="{{ y }}" {% if year==y %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-400">Split</label>
+        <select name="split"
+            class="bg-gray-800 text-sm text-gray-200 px-3 py-1.5 rounded border border-gray-700 focus:outline-none focus:border-yellow-500">
+            <option value="">All Splits</option>
+            {% for s in available_splits %}
+            <option value="{{ s }}" {% if split==s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-400">Stage</label>
+        <select name="playoffs"
+            class="bg-gray-800 text-sm text-gray-200 px-3 py-1.5 rounded border border-gray-700 focus:outline-none focus:border-yellow-500">
+            <option value="" {% if playoffs is none %}selected{% endif %}>All</option>
+            <option value="0" {% if playoffs==0 %}selected{% endif %}>Regular Season</option>
+            <option value="1" {% if playoffs==1 %}selected{% endif %}>Playoffs</option>
+        </select>
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-400">Team</label>
+        <span class="relative">
+            <input type="text" name="team" value="{{ team or '' }}" placeholder="Filter by team…"
+                data-autocomplete="teams"
+                class="bg-gray-800 text-sm text-gray-200 px-3 py-1.5 rounded border border-gray-700 focus:outline-none focus:border-yellow-500 w-44">
+        </span>
+    </div>
+
+    <button type="submit"
+        class="bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-semibold text-sm px-4 py-1.5 rounded">
+        Apply
+    </button>
+    <a href="/betting" class="text-sm text-gray-500 hover:text-gray-300 py-1.5">Reset</a>
+</form>
+
+{% if not rows %}
+<div class="text-center text-gray-500 py-16">No data found for the selected filters.</div>
+{% else %}
+
+{# ──────────── LEGEND ──────────── #}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 text-xs text-gray-400">
+    <div class="bg-gray-900 border border-gray-800 rounded p-3">
+        <div class="text-yellow-400 font-semibold mb-1">First Objectives</div>
+        % of games where team secured it first
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded p-3">
+        <div class="text-blue-400 font-semibold mb-1">Averages</div>
+        Mean per game across all team games
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded p-3">
+        <div class="text-purple-400 font-semibold mb-1">Over Lines</div>
+        % of games exceeding the listed threshold
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded p-3">
+        <div class="text-green-400 font-semibold mb-1">Totals = Both Teams</div>
+        Kills, Towers, Dragons, Nashors, Inhibitors include both sides
+    </div>
+</div>
+
+{# ──────────── TABLE ──────────── #}
+<div class="overflow-x-auto rounded-lg border border-gray-800">
+    <table class="w-full text-sm" id="betting-table">
+        <thead class="bg-gray-900 text-xs text-gray-400 uppercase sticky top-0">
+            <tr>
+                <th class="px-3 py-3 text-left">Team</th>
+                <th class="px-3 py-3 text-left text-gray-500">League</th>
+                <th class="px-3 py-3 text-center">G</th>
+
+                {# Win Rate #}
+                <th class="px-3 py-3 text-center text-green-400 cursor-pointer sortable" data-col="3" title="Win Rate">
+                    WR%</th>
+
+                {# First Objectives #}
+                <th class="px-3 py-3 text-center text-yellow-400 cursor-pointer sortable border-l border-gray-800"
+                    data-col="4" title="First Blood %">FB%</th>
+                <th class="px-3 py-3 text-center text-yellow-400 cursor-pointer sortable" data-col="5"
+                    title="First Tower %">FT%</th>
+                <th class="px-3 py-3 text-center text-yellow-400 cursor-pointer sortable" data-col="6"
+                    title="First Dragon %">FD%</th>
+                <th class="px-3 py-3 text-center text-yellow-400 cursor-pointer sortable" data-col="7"
+                    title="First Herald %">FH%</th>
+                <th class="px-3 py-3 text-center text-yellow-400 cursor-pointer sortable" data-col="8"
+                    title="First Baron %">FBr%</th>
+
+                {# Averages #}
+                <th class="px-3 py-3 text-center text-blue-400 cursor-pointer sortable border-l border-gray-800"
+                    data-col="9" title="Avg Total Kills">Kills</th>
+                <th class="px-3 py-3 text-center text-blue-400 cursor-pointer sortable" data-col="10"
+                    title="Avg Total Towers">Twrs</th>
+                <th class="px-3 py-3 text-center text-blue-400 cursor-pointer sortable" data-col="11"
+                    title="Avg Total Dragons">Drgs</th>
+                <th class="px-3 py-3 text-center text-blue-400 cursor-pointer sortable" data-col="12"
+                    title="Avg Total Nashors">Nash</th>
+                <th class="px-3 py-3 text-center text-blue-400 cursor-pointer sortable" data-col="13"
+                    title="Avg Total Inhibitors">Inh</th>
+                <th class="px-3 py-3 text-center text-blue-400 cursor-pointer sortable" data-col="14"
+                    title="Avg Game Time (min)">Time</th>
+                <th class="px-3 py-3 text-center text-blue-300 cursor-pointer sortable" data-col="15"
+                    title="Most Kills in a single game">Max K</th>
+
+                {# Overs #}
+                <th class="px-3 py-3 text-center text-purple-400 cursor-pointer sortable border-l border-gray-800"
+                    data-col="16" title="Kills Over 25 %">K&gt;25%</th>
+                <th class="px-3 py-3 text-center text-purple-400 cursor-pointer sortable" data-col="17"
+                    title="Towers Over 10 %">T&gt;10%</th>
+                <th class="px-3 py-3 text-center text-purple-400 cursor-pointer sortable" data-col="18"
+                    title="Nashors Over 1.5 (≥2) %">N&gt;1.5%</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+            {% for r in rows %}
+            <tr class="hover:bg-gray-800/40 transition-colors">
+                {# Team #}
+                <td class="px-3 py-2.5 font-semibold">
+                    <a href="/team/{{ r.teamname }}" class="text-white hover:text-yellow-300">{{ r.teamname }}</a>
+                </td>
+                <td class="px-3 py-2.5 text-gray-500 text-xs">{{ r.league }}</td>
+                <td class="px-3 py-2.5 text-center text-gray-500">{{ r.games }}</td>
+
+                {# Win Rate #}
+                <td class="px-3 py-2.5 text-center font-semibold">
+                    <span class="{{ 'text-green-400' if r.winrate >= 50 else 'text-red-400' }}">{{ r.winrate }}%</span>
+                </td>
+
+                {# First Objectives #}
+                {% macro pct_cell(val, border=false) %}
+                <td class="px-3 py-2.5 text-center {{ 'border-l border-gray-800' if border }}">
+                    <div class="flex flex-col items-center gap-0.5">
+                        <span
+                            class="{{ 'text-yellow-300' if val >= 55 else ('text-gray-300' if val >= 45 else 'text-gray-500') }}">{{
+                            val }}%</span>
+                        <div class="h-1 w-12 bg-gray-700 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full {{ 'bg-yellow-400' if val >= 55 else ('bg-gray-400' if val >= 45 else 'bg-red-500') }}"
+                                style="width: {{ val }}%"></div>
+                        </div>
+                    </div>
+                </td>
+                {% endmacro %}
+
+                {{ pct_cell(r.first_blood_pct, border=true) }}
+                {{ pct_cell(r.first_tower_pct) }}
+                {{ pct_cell(r.first_dragon_pct) }}
+                {{ pct_cell(r.first_herald_pct) }}
+                {{ pct_cell(r.first_baron_pct) }}
+
+                {# Averages #}
+                <td class="px-3 py-2.5 text-center text-blue-300 font-mono border-l border-gray-800">{{
+                    r.avg_total_kills }}</td>
+                <td class="px-3 py-2.5 text-center text-blue-300 font-mono">{{ r.avg_total_towers }}</td>
+                <td class="px-3 py-2.5 text-center text-blue-300 font-mono">{{ r.avg_total_dragons }}</td>
+                <td class="px-3 py-2.5 text-center text-blue-300 font-mono">{{ r.avg_total_nashors }}</td>
+                <td class="px-3 py-2.5 text-center text-blue-300 font-mono">{{ r.avg_total_inhibitors }}</td>
+                <td class="px-3 py-2.5 text-center text-blue-300 font-mono">{{ r.avg_game_minutes }}m</td>
+                <td class="px-3 py-2.5 text-center text-blue-200 font-mono font-semibold">{{ r.most_kills_game }}</td>
+
+                {# Overs #}
+                {% macro over_cell(val, border=false) %}
+                <td class="px-3 py-2.5 text-center {{ 'border-l border-gray-800' if border }}">
+                    <span
+                        class="{{ 'text-purple-300 font-semibold' if val >= 60 else ('text-gray-300' if val >= 40 else 'text-gray-500') }}">{{
+                        val }}%</span>
+                </td>
+                {% endmacro %}
+
+                {{ over_cell(r.kills_over_25_pct, border=true) }}
+                {{ over_cell(r.towers_over_10_pct) }}
+                {{ over_cell(r.nashors_over_1_5_pct) }}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="text-xs text-gray-600 mt-3">
+    {{ rows|length }} teams · All totals (Kills, Towers, Dragons, Nashors, Inhibitors) combine both teams per game.
+</p>
+
+{% endif %}
+
+<script>
+    // ── Column sort ──
+    document.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+            const col = parseInt(th.dataset.col);
+            const tbody = document.querySelector('#betting-table tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const asc = th.dataset.asc !== 'true';
+            th.dataset.asc = asc;
+
+            rows.sort((a, b) => {
+                const av = parseFloat(a.querySelectorAll('td')[col]?.textContent) || 0;
+                const bv = parseFloat(b.querySelectorAll('td')[col]?.textContent) || 0;
+                return asc ? av - bv : bv - av;
+            });
+            rows.forEach(r => tbody.appendChild(r));
+
+            document.querySelectorAll('th.sortable').forEach(t => t.textContent = t.textContent.replace(/ [▲▼]$/, ''));
+            th.textContent = th.textContent + (asc ? ' ▲' : ' ▼');
+        });
+    });
+</script>
+{% endblock %}

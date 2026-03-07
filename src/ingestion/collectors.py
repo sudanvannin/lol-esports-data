@@ -13,9 +13,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import boto3
-from botocore.client import Config
-
 from .esports_api import LoLEsportsClient, LoLEsportsFeedClient
 from .oracle_elixir import OracleElixirDownloader
 
@@ -26,12 +23,7 @@ logger = logging.getLogger(__name__)
 class CollectorConfig:
     """Configuration for data collectors."""
 
-    minio_endpoint: str = "http://localhost:9000"
-    minio_access_key: str = "minio"
-    minio_secret_key: str = "minio123"
-    bronze_bucket: str = "bronze"
     local_backup_dir: str = "data/bronze"
-    use_s3: bool = False
 
 
 class BronzeStorage:
@@ -41,27 +33,6 @@ class BronzeStorage:
         self.config = config
         self.local_dir = Path(config.local_backup_dir)
         self.local_dir.mkdir(parents=True, exist_ok=True)
-        self.use_s3 = config.use_s3
-
-        self._s3_client = None
-
-    @property
-    def s3_client(self):
-        """Lazy initialization of S3 client."""
-        if self._s3_client is None:
-            self._s3_client = boto3.client(
-                "s3",
-                endpoint_url=self.config.minio_endpoint,
-                aws_access_key_id=self.config.minio_access_key,
-                aws_secret_access_key=self.config.minio_secret_key,
-                config=Config(signature_version="s3v4"),
-            )
-        return self._s3_client
-
-    def _get_s3_key(self, data_type: str, identifier: str, timestamp: datetime) -> str:
-        """Generate S3 key with date partitioning."""
-        date_str = timestamp.strftime("%Y/%m/%d")
-        return f"{data_type}/{date_str}/{identifier}.json"
 
     def save_json(
         self,
@@ -93,20 +64,6 @@ class BronzeStorage:
 
         logger.debug(f"Saved locally: {local_file}")
 
-        if self.use_s3:
-            try:
-                s3_key = self._get_s3_key(data_type, identifier, timestamp)
-                self.s3_client.put_object(
-                    Bucket=self.config.bronze_bucket,
-                    Key=s3_key,
-                    Body=json_str,
-                    ContentType="application/json",
-                )
-                logger.debug(f"Uploaded to S3: s3://{self.config.bronze_bucket}/{s3_key}")
-                return f"s3://{self.config.bronze_bucket}/{s3_key}"
-            except Exception as e:
-                logger.warning(f"Failed to upload to S3: {e}. Data saved locally only.")
-
         return str(local_file)
 
     def save_csv(
@@ -117,22 +74,15 @@ class BronzeStorage:
     ) -> str:
         """Upload a CSV file to Bronze layer."""
         file_path = Path(file_path)
-        timestamp = datetime.utcnow()
+        
+        local_path = self.local_dir / data_type / f"{identifier}.csv"
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        import shutil
+        shutil.copy2(file_path, str(local_path))
+        logger.info(f"Saved CSV locally: {local_path}")
 
-        if self.use_s3:
-            try:
-                s3_key = f"{data_type}/{timestamp.strftime('%Y/%m/%d')}/{identifier}.csv"
-                self.s3_client.upload_file(
-                    str(file_path),
-                    self.config.bronze_bucket,
-                    s3_key,
-                )
-                logger.info(f"Uploaded CSV to S3: s3://{self.config.bronze_bucket}/{s3_key}")
-                return f"s3://{self.config.bronze_bucket}/{s3_key}"
-            except Exception as e:
-                logger.warning(f"Failed to upload CSV to S3: {e}")
-
-        return str(file_path)
+        return str(local_path)
 
 
 class LeaguesCollector:
@@ -196,7 +146,7 @@ class MatchesCollector:
     async def collect(
         self,
         league_ids: list[str],
-        include_game_details: bool = True,
+        include_game_details: bool = False,
     ) -> dict[str, Any]:
         """
         Collect completed matches for specified leagues.
@@ -210,42 +160,27 @@ class MatchesCollector:
         async with LoLEsportsClient() as api_client:
             for league_id in league_ids:
                 try:
-                    matches = await api_client.get_completed_matches(league_id)
+                    matches = await api_client.get_completed_matches_raw(league_id)
                     logger.info(f"Fetched {len(matches)} matches for league {league_id}")
 
                     for match in matches:
-                        match_dict = match.model_dump(mode="json")
-                        results["matches"].append(match_dict)
+                        results["matches"].append(match)
+
+                        start_time = None
+                        if match.get("start_time"):
+                            try:
+                                start_time = datetime.fromisoformat(
+                                    match["start_time"].replace("Z", "+00:00")
+                                )
+                            except (ValueError, TypeError):
+                                pass
 
                         self.storage.save_json(
-                            data=match_dict,
+                            data=match,
                             data_type="matches",
-                            identifier=match.id,
-                            timestamp=match.start_time,
+                            identifier=match["match_id"],
+                            timestamp=start_time,
                         )
-
-                        if include_game_details:
-                            for game in match.games:
-                                game_id = game.get("id")
-                                if not game_id:
-                                    continue
-
-                                try:
-                                    game_details = await api_client.get_games(match.id)
-                                    for game_detail in game_details:
-                                        results["games"].append(game_detail)
-
-                                        self.storage.save_json(
-                                            data=game_detail,
-                                            data_type="games",
-                                            identifier=game_detail.get("id", game_id),
-                                            timestamp=match.start_time,
-                                        )
-
-                                except Exception as e:
-                                    error_msg = f"Error fetching game {game_id}: {e}"
-                                    logger.error(error_msg)
-                                    results["errors"].append(error_msg)
 
                 except Exception as e:
                     error_msg = f"Error fetching matches for league {league_id}: {e}"
@@ -398,9 +333,7 @@ async def main():
     )
 
     config = CollectorConfig(
-        minio_endpoint="http://localhost:9000",
-        minio_access_key="minio",
-        minio_secret_key="minio123",
+        local_backup_dir="data/bronze"
     )
 
     results = await run_full_ingestion(

@@ -216,19 +216,23 @@ class LoLEsportsClient:
         data = await self._request("getGames", params={"id": match_id})
         return data.get("games", [])
 
-    async def get_completed_matches(
+    async def get_completed_matches_raw(
         self,
         league_id: str,
         tournament_id: str | None = None,
-    ) -> list[Match]:
-        """Get all completed matches for a league."""
+        max_pages: int = 500,
+    ) -> list[dict]:
+        """Get all completed matches for a league as raw dicts."""
         matches = []
         page_token = None
+        pages_fetched = 0
 
-        while True:
-            schedule = await self.get_schedule(
+        while pages_fetched < max_pages:
+            data = await self.get_schedule(
                 league_id=league_id, page_token=page_token
             )
+            schedule = data.get("schedule", {})
+            pages_fetched += 1
 
             for event in schedule.get("events", []):
                 if event.get("state") != "completed":
@@ -244,39 +248,27 @@ class LoLEsportsClient:
                 if tournament_id and event.get("tournament", {}).get("id") != tournament_id:
                     continue
 
-                teams = match_data.get("teams", [])
-                team1 = teams[0] if len(teams) > 0 else {}
-                team2 = teams[1] if len(teams) > 1 else {}
-
-                start_time = None
-                if event.get("startTime"):
-                    start_time = datetime.fromisoformat(
-                        event["startTime"].replace("Z", "+00:00")
-                    )
-
-                strategy = match_data.get("strategy", {})
-
-                matches.append(
-                    Match(
-                        id=match_data["id"],
-                        state=event["state"],
-                        block_name=event.get("blockName"),
-                        league_slug=event.get("league", {}).get("slug", ""),
-                        tournament_id=event.get("tournament", {}).get("id", ""),
-                        strategy_type=strategy.get("type", "bestOf"),
-                        strategy_count=strategy.get("count", 1),
-                        team1=team1,
-                        team2=team2,
-                        games=match_data.get("games", []),
-                        start_time=start_time,
-                    )
-                )
+                # Store raw data with event context
+                matches.append({
+                    "match_id": match_data.get("id"),
+                    "state": event.get("state"),
+                    "start_time": event.get("startTime"),
+                    "block_name": event.get("blockName"),
+                    "league": event.get("league", {}),
+                    "tournament": event.get("tournament", {}),
+                    "strategy": match_data.get("strategy", {}),
+                    "teams": match_data.get("teams", []),
+                    "games": match_data.get("games", []),
+                })
 
             pages = schedule.get("pages", {})
-            page_token = pages.get("newer")
+            page_token = pages.get("older")  # Go back in time for historical data
 
             if not page_token:
                 break
+
+            if pages_fetched % 10 == 0:
+                logger.info(f"Fetched page {pages_fetched}, {len(matches)} matches so far...")
 
         return matches
 

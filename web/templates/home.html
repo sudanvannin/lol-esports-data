@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}LoL Esports Stats - Home{% endblock %}
+{% block content %}
+
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <!-- Recent Series -->
+    <div class="lg:col-span-3">
+        <h2 class="text-lg font-semibold text-gray-200 mb-4">Recent Matches</h2>
+        <div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
+                    <tr>
+                        <th class="px-4 py-2 text-left">Date</th>
+                        <th class="px-4 py-2 text-left">League</th>
+                        <th class="px-4 py-2 text-left">Phase</th>
+                        <th class="px-4 py-2 text-right">Team 1</th>
+                        <th class="px-4 py-2 text-center">Score</th>
+                        <th class="px-4 py-2 text-left">Team 2</th>
+                        <th class="px-4 py-2 text-center">Format</th>
+                        <th class="px-2 py-2 w-8"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for s in recent_series %}
+                    <tr class="hover:bg-gray-800/50">
+                        <td class="px-4 py-2 text-gray-400">{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}</td>
+                        <td class="px-4 py-2">
+                            <a href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}" class="text-blue-400 hover:text-blue-300">{{ s.league }}</a>
+                        </td>
+                        <td class="px-4 py-2 text-gray-400 text-xs">{{ s.tournament_phase or '' }}</td>
+                        <td class="px-4 py-2 text-right {% if s.series_winner == s.team1 %}text-green-400 font-semibold{% endif %}">
+                            <a href="/team/{{ s.team1 }}" class="hover:underline">{{ s.team1 }}</a>
+                        </td>
+                        <td class="px-4 py-2 text-center font-mono text-gray-300">{{ s.score }}</td>
+                        <td class="px-4 py-2 {% if s.series_winner == s.team2 %}text-green-400 font-semibold{% endif %}">
+                            <a href="/team/{{ s.team2 }}" class="hover:underline">{{ s.team2 }}</a>
+                        </td>
+                        <td class="px-4 py-2 text-center text-gray-500 text-xs">{{ s.series_format }}</td>
+                        <td class="px-2 py-2 text-center">
+                            <button onclick="toggleSeries(this, '{{ s.team1 }}', '{{ s.team2 }}', '{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}')"
+                                    class="text-gray-500 hover:text-blue-400 text-xs bg-gray-800 px-2 py-0.5 rounded">+</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Active Leagues -->
+    <div>
+        <h2 class="text-lg font-semibold text-gray-200 mb-4">Active Leagues</h2>
+        <div class="bg-gray-900 rounded-lg border border-gray-800 p-4 space-y-3">
+            {% for l in active_leagues %}
+            <a href="/tournament/{{ l.league }}/{{ l.last_match.year if l.last_match else '' }}"
+               class="block p-3 rounded hover:bg-gray-800 transition">
+                <div class="font-semibold text-blue-400">{{ l.league }}</div>
+                <div class="text-xs text-gray-500">{{ l.total_series }} series (last 30d)</div>
+            </a>
+            {% endfor %}
+        </div>
+
+        <h2 class="text-lg font-semibold text-gray-200 mt-8 mb-4">Quick Links</h2>
+        <div class="bg-gray-900 rounded-lg border border-gray-800 p-4 space-y-2">
+            <a href="/player/Faker" class="block text-sm text-blue-400 hover:text-blue-300">Faker</a>
+            <a href="/player/Chovy" class="block text-sm text-blue-400 hover:text-blue-300">Chovy</a>
+            <a href="/compare?p1=Faker&p2=Chovy" class="block text-sm text-blue-400 hover:text-blue-300">Faker vs Chovy</a>
+            <a href="/tournament/WLDs/2025" class="block text-sm text-blue-400 hover:text-blue-300">Worlds 2025</a>
+            <a href="/tournament/MSI/2025" class="block text-sm text-blue-400 hover:text-blue-300">MSI 2025</a>
+            <a href="/rankings?stat=kda&year=2025" class="block text-sm text-blue-400 hover:text-blue-300">Rankings 2025</a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

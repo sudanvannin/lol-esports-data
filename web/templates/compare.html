@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+{% block title %}Compare — LoL Esports Stats{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-2">Compare</h1>
+<p class="text-gray-500 text-sm mb-6">Side-by-side team and player comparison with betting insights.</p>
+
+{# ── Mode Toggle & Split Filter ── #}
+<div class="flex flex-col sm:flex-row gap-4 mb-6 justify-between items-start sm:items-center">
+    <div class="flex gap-2">
+        <a href="/compare?mode=players{% if p1 %}&p1={{ p1 }}{% endif %}{% if p2 %}&p2={{ p2 }}{% endif %}"
+            class="px-4 py-2 rounded text-sm {{ 'bg-blue-600 text-white' if mode == 'players' else 'bg-gray-800 text-gray-400 hover:bg-gray-700' }}">Players</a>
+        <a href="/compare?mode=teams{% if p1 %}&p1={{ p1 }}{% endif %}{% if p2 %}&p2={{ p2 }}{% endif %}"
+            class="px-4 py-2 rounded text-sm {{ 'bg-yellow-500 text-gray-900 font-semibold' if mode == 'teams' else 'bg-gray-800 text-gray-400 hover:bg-gray-700' }}">⚡
+            Teams</a>
+    </div>
+
+    {% if mode == 'teams' and h2h_by_split %}
+    <div class="flex items-center gap-2">
+        <span class="text-xs text-gray-500 uppercase tracking-wider">H2H Split:</span>
+        <select onchange="window.location.href='/compare?mode=teams&p1={{ p1 }}&p2={{ p2 }}&split=' + this.value"
+            class="bg-gray-800 text-sm text-gray-300 px-3 py-1.5 rounded border border-gray-700 outline-none focus:border-yellow-500">
+            <option value="all" {% if target_split=='all' %}selected{% endif %}>All Matches</option>
+            {% for sp in h2h_by_split %}
+            {% set sp_key = sp.year|string ~ '-' ~ sp.league ~ '-' ~ sp.split ~ '-' ~ sp.playoffs|string %}
+            <option value="{{ sp_key }}" {% if target_split==sp_key %}selected{% endif %}>
+                {{ sp.year }} {{ sp.league }} {{ '' if sp.split == 'N/A' else sp.split }} {{ '(' ~ sp.stage ~ ')' if
+                sp.stage and sp.split != 'N/A' else '' }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+</div>
+
+{# ── Search Form ── #}
+<form action="/compare" method="get" class="flex items-center gap-4 mb-8 flex-wrap">
+    <input type="hidden" name="mode" value="{{ mode }}">
+    {% if target_split and target_split != 'all' %}
+    <input type="hidden" name="split" value="{{ target_split }}">
+    {% endif %}
+    <span class="relative">
+        <input type="text" name="p1" value="{{ p1 }}" data-autocomplete="{{ mode }}"
+            placeholder="{{ 'Team 1 (e.g. T1)' if mode == 'teams' else 'Player 1 (e.g. Faker)' }}"
+            class="bg-gray-800 text-gray-200 px-4 py-2 rounded border border-gray-700 focus:outline-none focus:border-yellow-500 w-48">
+    </span>
+    <span class="text-gray-500 font-bold text-xl">vs</span>
+    <span class="relative">
+        <input type="text" name="p2" value="{{ p2 }}" data-autocomplete="{{ mode }}"
+            placeholder="{{ 'Team 2 (e.g. Gen.G)' if mode == 'teams' else 'Player 2 (e.g. Chovy)' }}"
+            class="bg-gray-800 text-gray-200 px-4 py-2 rounded border border-gray-700 focus:outline-none focus:border-yellow-500 w-48">
+    </span>
+    <button type="submit"
+        class="{{ 'bg-yellow-500 hover:bg-yellow-400 text-gray-900' if mode == 'teams' else 'bg-blue-600 hover:bg-blue-500 text-white' }} px-6 py-2 rounded font-semibold">Compare</button>
+</form>
+
+
+{# ═══════════════════════════════════════════════════
+TEAM COMPARISON
+═══════════════════════════════════════════════════ #}
+{% if mode == 'teams' %}
+{% if bet1 and bet2 %}
+
+{% set t1 = name1 %}
+{% set t2 = name2 %}
+
+{# ── Form strips ── #}
+<div class="grid grid-cols-2 gap-4 mb-6">
+    {% for form, tname in [(form1, t1), (form2, t2)] %}
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 flex items-center gap-2 flex-wrap">
+        <a href="/team/{{ tname }}" class="text-white font-bold hover:text-yellow-300 mr-2">{{ tname }}</a>
+        <span class="text-xs text-gray-500">Last {{ form|length }}:</span>
+        {% for g in form %}
+        <span
+            class="w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold
+                 {{ 'bg-green-500/20 text-green-400 border border-green-600' if g.result == 1 else 'bg-red-500/20 text-red-400 border border-red-700' }}"
+            title="{{ g.game_date }}">
+            {{ 'W' if g.result == 1 else 'L' }}
+        </span>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+
+{# ── H2H Summary ── #}
+{% if h2h_summary and h2h_summary.total_series > 0 %}
+<div class="bg-gray-900 border border-gray-800 rounded-lg p-5 mb-6 text-center">
+    <div class="text-xs text-gray-500 mb-2 uppercase tracking-wider">Head-to-Head ({{ h2h_summary.total_series|int }}
+        series)</div>
+    <div class="flex items-center justify-center gap-6">
+        <div>
+            <div
+                class="text-4xl font-bold {{ 'text-green-400' if h2h_summary.t1_wins > h2h_summary.t2_wins else 'text-gray-300' }}">
+                {{ h2h_summary.t1_wins|int }}</div>
+            <div class="text-sm text-gray-500 mt-1">{{ t1 }}</div>
+        </div>
+        <div class="text-gray-600 text-2xl">–</div>
+        <div>
+            <div
+                class="text-4xl font-bold {{ 'text-green-400' if h2h_summary.t2_wins > h2h_summary.t1_wins else 'text-gray-300' }}">
+                {{ h2h_summary.t2_wins|int }}</div>
+            <div class="text-sm text-gray-500 mt-1">{{ t2 }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ── Betting Stats Toggle ── #}
+<div class="mb-6">
+    <div class="flex items-center gap-3 mb-4">
+        <h2 class="text-base font-semibold text-yellow-400 flex items-center gap-2">⚡ Betting Stats</h2>
+        <div class="flex bg-gray-800 rounded-lg overflow-hidden border border-gray-700 ml-auto">
+            <button id="btnGeneral" onclick="showStats('general')"
+                class="px-4 py-1.5 text-xs font-semibold bg-yellow-500 text-gray-900 transition-all">📊 General</button>
+            <button id="btnH2H" onclick="showStats('h2h')"
+                class="px-4 py-1.5 text-xs font-semibold text-gray-400 hover:text-white transition-all">⚔️ H2H</button>
+        </div>
+    </div>
+
+    {% macro compare_row(label, v1, v2, suffix='%', higher_is_better=true) %}
+    {% set total = (v1|float + v2|float) %}
+    {% set pct1 = ((v1|float / total * 100) if total > 0 else 50)|round(1) %}
+    {% set pct2 = (100 - pct1) %}
+    {% set t1_better = (v1|float > v2|float) if higher_is_better else (v1|float < v2|float) %} {% set
+        t2_better=(v2|float> v1|float) if higher_is_better else (v2|float < v1|float) %} <div
+            class="border-t border-gray-800 px-4 py-3">
+            <div class="grid grid-cols-3 items-center mb-1.5">
+                <div
+                    class="text-right font-mono text-sm {{ 'text-green-400 font-bold' if t1_better else ('text-red-400' if t2_better else 'text-gray-300') }}">
+                    {{ v1 }}{{ suffix }}
+                </div>
+                <div class="text-center text-xs text-gray-500">{{ label }}</div>
+                <div
+                    class="text-left font-mono text-sm {{ 'text-green-400 font-bold' if t2_better else ('text-red-400' if t1_better else 'text-gray-300') }}">
+                    {{ v2 }}{{ suffix }}
+                </div>
+            </div>
+            <div class="flex h-1.5 rounded-full overflow-hidden">
+                <div class="rounded-l-full bg-blue-400 transition-all" style="width: {{ pct1 }}%"></div>
+                <div class="rounded-r-full bg-purple-400 transition-all" style="width: {{ pct2 }}%"></div>
+            </div>
+</div>
+{% endmacro %}
+
+{# ── GENERAL STATS ── #}
+<div id="statsGeneral">
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+        <div class="grid grid-cols-3 bg-gray-800 text-xs uppercase text-gray-400 px-4 py-3">
+            <div class="text-right font-semibold text-blue-300">{{ t1 }} <span class="text-gray-600 font-normal">({{
+                    gen1.games }} games)</span></div>
+            <div class="text-center">General Stats</div>
+            <div class="text-left font-semibold text-purple-300"><span class="text-gray-600 font-normal">({{ gen2.games
+                    }} games)</span> {{ t2 }}</div>
+        </div>
+
+        <div class="px-4 py-2 bg-gray-800/40 text-xs text-yellow-400 uppercase tracking-wider">Win Rate & First
+            Objectives</div>
+        {{ compare_row('Win Rate', gen1.winrate, gen2.winrate) }}
+        {{ compare_row('First Blood', gen1.first_blood_pct, gen2.first_blood_pct) }}
+        {{ compare_row('First Tower', gen1.first_tower_pct, gen2.first_tower_pct) }}
+        {{ compare_row('First Dragon', gen1.first_dragon_pct, gen2.first_dragon_pct) }}
+        {{ compare_row('First Herald', gen1.first_herald_pct, gen2.first_herald_pct) }}
+        {{ compare_row('First Baron', gen1.first_baron_pct, gen2.first_baron_pct) }}
+
+        <div class="px-4 py-2 bg-gray-800/40 text-xs text-blue-400 uppercase tracking-wider">Averages (per game — both
+            teams)</div>
+        {{ compare_row('Avg Total Kills', gen1.avg_total_kills, gen2.avg_total_kills, suffix='') }}
+        {{ compare_row('Avg Towers', gen1.avg_total_towers, gen2.avg_total_towers, suffix='') }}
+        {{ compare_row('Avg Dragons', gen1.avg_total_dragons, gen2.avg_total_dragons, suffix='') }}
+        {{ compare_row('Avg Nashors', gen1.avg_total_nashors, gen2.avg_total_nashors, suffix='') }}
+        {{ compare_row('Avg Game Time (m)', gen1.avg_game_minutes, gen2.avg_game_minutes, suffix='m',
+        higher_is_better=false) }}
+
+        <div class="px-4 py-2 bg-gray-800/40 text-xs text-purple-400 uppercase tracking-wider">Over Lines</div>
+        {{ compare_row('Kills >25', gen1.kills_over_25_pct, gen2.kills_over_25_pct) }}
+        {{ compare_row('Towers >10', gen1.towers_over_10_pct, gen2.towers_over_10_pct) }}
+        {{ compare_row('Nashor >1.5', gen1.nashors_over_1_5_pct, gen2.nashors_over_1_5_pct) }}
+    </div>
+</div>
+
+{# ── H2H STATS ── #}
+<div id="statsH2H" class="hidden">
+    <div class="bg-gray-900 border border-yellow-600/30 rounded-lg overflow-hidden">
+        <div class="grid grid-cols-3 bg-gray-800 text-xs uppercase text-gray-400 px-4 py-3">
+            <div class="text-right font-semibold text-blue-300">{{ t1 }} <span class="text-gray-600 font-normal">({{
+                    bet1.games if bet1 else 0 }} H2H games)</span></div>
+            <div class="text-center text-yellow-400">⚔️ Head-to-Head</div>
+            <div class="text-left font-semibold text-purple-300"><span class="text-gray-600 font-normal">({{ bet2.games
+                    if bet2 else 0 }} H2H games)</span> {{ t2 }}</div>
+        </div>
+
+        {% if bet1 and bet2 and bet1.games and bet2.games %}
+        <div class="px-4 py-2 bg-gray-800/40 text-xs text-yellow-400 uppercase tracking-wider">Win Rate & First
+            Objectives (H2H)</div>
+        {{ compare_row('Win Rate', bet1.winrate, bet2.winrate) }}
+        {{ compare_row('First Blood', bet1.first_blood_pct, bet2.first_blood_pct) }}
+        {{ compare_row('First Tower', bet1.first_tower_pct, bet2.first_tower_pct) }}
+        {{ compare_row('First Dragon', bet1.first_dragon_pct, bet2.first_dragon_pct) }}
+        {{ compare_row('First Herald', bet1.first_herald_pct, bet2.first_herald_pct) }}
+        {{ compare_row('First Baron', bet1.first_baron_pct, bet2.first_baron_pct) }}
+
+        <div class="px-4 py-2 bg-gray-800/40 text-xs text-blue-400 uppercase tracking-wider">Averages H2H (per game —
+            both teams)</div>
+        {{ compare_row('Avg Total Kills', bet1.avg_total_kills, bet2.avg_total_kills, suffix='') }}
+        {{ compare_row('Avg Towers', bet1.avg_total_towers, bet2.avg_total_towers, suffix='') }}
+        {{ compare_row('Avg Dragons', bet1.avg_total_dragons, bet2.avg_total_dragons, suffix='') }}
+        {{ compare_row('Avg Nashors', bet1.avg_total_nashors, bet2.avg_total_nashors, suffix='') }}
+        {{ compare_row('Avg Game Time (m)', bet1.avg_game_minutes, bet2.avg_game_minutes, suffix='m',
+        higher_is_better=false) }}
+
+        <div class="px-4 py-2 bg-gray-800/40 text-xs text-purple-400 uppercase tracking-wider">Over Lines (H2H)</div>
+        {{ compare_row('Kills >25', bet1.kills_over_25_pct, bet2.kills_over_25_pct) }}
+        {{ compare_row('Towers >10', bet1.towers_over_10_pct, bet2.towers_over_10_pct) }}
+        {{ compare_row('Nashor >1.5', bet1.nashors_over_1_5_pct, bet2.nashors_over_1_5_pct) }}
+        {% else %}
+        <div class="p-8 text-center text-gray-500">No H2H games found between these teams{{ ' for this split' if
+            target_split != 'all' else '' }}.</div>
+        {% endif %}
+    </div>
+</div>
+</div>
+
+<script>
+    function showStats(mode) {
+        const gen = document.getElementById('statsGeneral');
+        const h2h = document.getElementById('statsH2H');
+        const btnGen = document.getElementById('btnGeneral');
+        const btnH2H = document.getElementById('btnH2H');
+
+        if (mode === 'h2h') {
+            gen.classList.add('hidden');
+            h2h.classList.remove('hidden');
+            btnH2H.classList.add('bg-yellow-500', 'text-gray-900');
+            btnH2H.classList.remove('text-gray-400');
+            btnGen.classList.remove('bg-yellow-500', 'text-gray-900');
+            btnGen.classList.add('text-gray-400');
+        } else {
+            h2h.classList.add('hidden');
+            gen.classList.remove('hidden');
+            btnGen.classList.add('bg-yellow-500', 'text-gray-900');
+            btnGen.classList.remove('text-gray-400');
+            btnH2H.classList.remove('bg-yellow-500', 'text-gray-900');
+            btnH2H.classList.add('text-gray-400');
+        }
+    }
+</script>
+
+{# ── Radar Chart ── #}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+        <h3 class="text-sm font-semibold text-gray-300 mb-4 text-center">First Objectives Radar</h3>
+        <canvas id="radarChart" height="260"></canvas>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+        <h3 class="text-sm font-semibold text-gray-300 mb-4 text-center">Over Lines Comparison</h3>
+        <canvas id="overChart" height="260"></canvas>
+    </div>
+</div>
+
+{# ── H2H Match History ── #}
+{% if h2h_series %}
+<h2 class="text-base font-semibold text-gray-200 mb-3">Match History</h2>
+<div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden mb-8">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
+            <tr>
+                <th class="px-4 py-2 text-left">Date</th>
+                <th class="px-4 py-2 text-left">League</th>
+                <th class="px-4 py-2 text-left">Phase</th>
+                <th class="px-4 py-2 text-right">{{ t1 }}</th>
+                <th class="px-4 py-2 text-center">Score</th>
+                <th class="px-4 py-2 text-left">{{ t2 }}</th>
+                <th class="px-2 py-2 w-8"></th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800">
+            {% for s in h2h_series %}
+            <tr class="hover:bg-gray-800/50">
+                <td class="px-4 py-2 text-gray-400">{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}</td>
+                <td class="px-4 py-2"><a
+                        href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}"
+                        class="text-blue-400 hover:text-blue-300">{{ s.league }}</a></td>
+                <td class="px-4 py-2 text-gray-500 text-xs">{{ s.tournament_phase or '' }}</td>
+                <td
+                    class="px-4 py-2 text-right {{ 'text-green-400 font-semibold' if s.series_winner == s.team1 else '' }}">
+                    {{ s.team1 }}</td>
+                <td class="px-4 py-2 text-center font-mono text-gray-300">{{ s.score }}</td>
+                <td class="px-4 py-2 {{ 'text-green-400 font-semibold' if s.series_winner == s.team2 else '' }}">{{
+                    s.team2 }}</td>
+                <td class="px-2 py-2 text-center">
+                    <button
+                        onclick="toggleSeries(this, '{{ s.team1 }}', '{{ s.team2 }}', '{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}')"
+                        class="text-gray-500 hover:text-blue-400 text-xs bg-gray-800 px-2 py-0.5 rounded">+</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if h2h_series|length == 0 %}
+    <div class="p-4 text-center text-gray-500 text-sm">No matches found for this split.</div>
+    {% endif %}
+</div>
+
+{% endif %}
+
+{# Charts #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    const t1 = {{ t1 | tojson }};
+    const t2 = {{ t2 | tojson }};
+
+    const chartDef = {
+        plugins: { legend: { labels: { color: '#d1d5db', font: { size: 11 } } } },
+    };
+
+    // Radar — First Objectives
+    new Chart(document.getElementById('radarChart'), {
+        type: 'radar',
+        data: {
+            labels: ['Win Rate', 'First Blood', 'First Tower', 'First Dragon', 'First Herald', 'First Baron'],
+            datasets: [{
+                label: t1,
+                data: [{{ bet1.winrate }}, {{ bet1.first_blood_pct }}, {{ bet1.first_tower_pct }},
+        {{ bet1.first_dragon_pct }}, {{ bet1.first_herald_pct }}, {{ bet1.first_baron_pct }}],
+        borderColor: '#60a5fa',
+        backgroundColor: 'rgba(96,165,250,0.15)',
+        pointBackgroundColor: '#60a5fa',
+        borderWidth: 2,
+    }, {
+            label: t2,
+            data: [{{ bet2.winrate }}, {{ bet2.first_blood_pct }}, {{ bet2.first_tower_pct }},
+        {{ bet2.first_dragon_pct }}, {{ bet2.first_herald_pct }}, {{ bet2.first_baron_pct }}],
+        borderColor: '#c084fc',
+        backgroundColor: 'rgba(192,132,252,0.15)',
+        pointBackgroundColor: '#c084fc',
+        borderWidth: 2,
+    }]
+  },
+        options: {
+        ...chartDef,
+        scales: {
+            r: {
+                min: 0, max: 100,
+                ticks: { color: '#6b7280', backdropColor: 'transparent', stepSize: 25 },
+                grid: { color: '#1f2937' },
+                pointLabels: { color: '#9ca3af', font: { size: 11 } },
+                angleLines: { color: '#1f2937' }
+            }
+        }
+    }
+});
+
+    // Horizontal bar — Over Lines + Averages
+    new Chart(document.getElementById('overChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Kills >25%', 'Towers >10%', 'Nashor >1.5%'],
+            datasets: [{
+                label: t1,
+                data: [{{ bet1.kills_over_25_pct }}, {{ bet1.towers_over_10_pct }}, {{ bet1.nashors_over_1_5_pct }}],
+        backgroundColor: 'rgba(96,165,250,0.6)',
+        borderColor: '#60a5fa',
+        borderWidth: 1.5,
+        borderRadius: 4,
+    }, {
+            label: t2,
+            data: [{{ bet2.kills_over_25_pct }}, {{ bet2.towers_over_10_pct }}, {{ bet2.nashors_over_1_5_pct }}],
+        backgroundColor: 'rgba(192,132,252,0.6)',
+        borderColor: '#c084fc',
+        borderWidth: 1.5,
+        borderRadius: 4,
+    }]
+  },
+        options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { labels: { color: '#d1d5db', font: { size: 11 } } } },
+        scales: {
+            x: { max: 100, ticks: { color: '#6b7280', callback: v => v + '%' }, grid: { color: '#1f2937' } },
+            y: { ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } }
+        }
+    }
+});
+</script>
+
+{% elif p1 and p2 %}
+<p class="text-gray-500">Could not find both teams. Try partial names (e.g. "T1", "Gen.G").</p>
+{% else %}
+<div class="text-center py-20 text-gray-600">
+    <div class="text-5xl mb-4">⚡</div>
+    <p class="text-lg">Enter two teams above to compare their betting stats head-to-head.</p>
+</div>
+{% endif %}
+
+
+
+{# ═══════════════════════════════════════════════════
+PLAYER COMPARISON
+═══════════════════════════════════════════════════ #}
+{% else %}
+{% if comparison and comparison|length == 2 %}
+{% set c1 = comparison[0] %}
+{% set c2 = comparison[1] %}
+
+{# H2H #}
+{% if h2h and h2h.games > 0 %}
+<div class="bg-gray-900 rounded-lg border border-gray-800 p-5 mb-6 text-center">
+    <div class="text-xs text-gray-500 uppercase tracking-wider mb-2">Head-to-Head ({{ h2h.games|int }} games)</div>
+    <div class="flex items-center justify-center gap-6">
+        <div>
+            <div class="text-4xl font-bold {{ 'text-green-400' if h2h.p1_wins > h2h.p2_wins else 'text-gray-300' }}">{{
+                h2h.p1_wins|int }}</div>
+            <div class="text-sm text-gray-500 mt-1">{{ c1.playername }}</div>
+        </div>
+        <div class="text-gray-600 text-2xl">–</div>
+        <div>
+            <div class="text-4xl font-bold {{ 'text-green-400' if h2h.p2_wins > h2h.p1_wins else 'text-gray-300' }}">{{
+                h2h.p2_wins|int }}</div>
+            <div class="text-sm text-gray-500 mt-1">{{ c2.playername }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# Player face-a-face table #}
+<div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+    <div class="grid grid-cols-3 bg-gray-800 text-xs uppercase text-gray-400 px-4 py-3">
+        <div class="text-right"><a href="/player/{{ c1.playername }}"
+                class="text-blue-400 hover:text-blue-300 text-base normal-case font-semibold">{{ c1.playername }}</a>
+        </div>
+        <div class="text-center">Stat</div>
+        <div class="text-left"><a href="/player/{{ c2.playername }}"
+                class="text-purple-400 hover:text-purple-300 text-base normal-case font-semibold">{{ c2.playername
+                }}</a></div>
+    </div>
+
+    {% macro player_row(label, v1, v2, higher_is_better=true, suffix='') %}
+    {% set t1_better = (v1|float > v2|float) if higher_is_better else (v1|float < v2|float) %} {% set
+        t2_better=(v2|float> v1|float) if higher_is_better else (v2|float < v1|float) %} {% set total=v1|float +
+            v2|float %} {% set pct1=((v1|float / total * 100) if total> 0 else 50)|round(1) %}
+            <div class="border-t border-gray-800 px-4 py-3">
+                <div class="grid grid-cols-3 items-center mb-1.5">
+                    <div
+                        class="text-right font-mono text-sm {{ 'text-green-400 font-bold' if t1_better else ('text-red-400' if t2_better else 'text-gray-300') }}">
+                        {{ v1 }}{{ suffix }}</div>
+                    <div class="text-center text-xs text-gray-500">{{ label }}</div>
+                    <div
+                        class="text-left font-mono text-sm {{ 'text-green-400 font-bold' if t2_better else ('text-red-400' if t1_better else 'text-gray-300') }}">
+                        {{ v2 }}{{ suffix }}</div>
+                </div>
+                <div class="flex h-1.5 rounded-full overflow-hidden">
+                    <div class="rounded-l-full bg-blue-400" style="width: {{ pct1 }}%"></div>
+                    <div class="rounded-r-full bg-purple-400" style="width: {{ 100 - pct1 }}%"></div>
+                </div>
+            </div>
+            {% endmacro %}
+
+            <div class="px-4 py-2 bg-gray-800/40 text-xs text-blue-400 uppercase tracking-wider">Overview</div>
+            {{ player_row('Games', c1.games, c2.games) }}
+            {{ player_row('Win Rate', c1.winrate, c2.winrate, suffix='%') }}
+
+            <div class="px-4 py-2 bg-gray-800/40 text-xs text-yellow-400 uppercase tracking-wider">Combat</div>
+            {{ player_row('KDA', c1.kda, c2.kda) }}
+            {{ player_row('Avg Kills', c1.avg_k, c2.avg_k) }}
+            {{ player_row('Avg Deaths', c1.avg_d, c2.avg_d, higher_is_better=false) }}
+            {{ player_row('Avg Assists',c1.avg_a, c2.avg_a) }}
+
+            <div class="px-4 py-2 bg-gray-800/40 text-xs text-purple-400 uppercase tracking-wider">Performance</div>
+            {{ player_row('DPM', c1.avg_dpm, c2.avg_dpm) }}
+            {{ player_row('CS/min', c1.avg_cspm, c2.avg_cspm) }}
+            {{ player_row('GD@15', c1.avg_gd15, c2.avg_gd15) }}
+            {{ player_row('Vision', c1.avg_vs, c2.avg_vs) }}
+</div>
+
+{% elif p1 and p2 %}
+<p class="text-gray-500">Could not find both players. Make sure the names are exact.</p>
+{% else %}
+<div class="text-center py-20 text-gray-600">
+    <div class="text-5xl mb-4">🎮</div>
+    <p class="text-lg">Enter two players above to compare their stats.</p>
+</div>
+{% endif %}
+{% endif %}
+
+{% endblock %}

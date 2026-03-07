@@ -1,0 +1,47 @@
+name: Weekly Oracle's Elixir Ingestion
+
+on:
+  schedule:
+    # Run every Sunday at 05:00 UTC (allowing Oracle's Elixir to update the CSV over the weekend)
+    - cron: '0 5 * * 0'
+  workflow_dispatch:
+    # Allows manual trigger from the UI
+
+jobs:
+  ingest-oracle-data:
+    runs-on: ubuntu-latest
+
+    env:
+      MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+      MOTHERDUCK_DB: "lolesports"
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download Oracle's Elixir Historical Data
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          # Assuming you create a small script or adapt collectors.py to run only Oracle's Elixir
+          python scripts/download_oracle.py
+
+      - name: Run Silver Processing (Games/Matches Transformations)
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          python scripts/build_silver_lake.py
+
+      - name: Upload Silver Data to MotherDuck
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          python scripts/upload_to_motherduck.py --db lolesports

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Search: {{ query }}{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-6">Search: "{{ query }}"</h1>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Players -->
+    <div>
+        <h2 class="text-lg font-semibold text-gray-200 mb-3">Players ({{ players|length }})</h2>
+        <div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+            {% if players %}
+            <table class="w-full text-sm">
+                <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
+                    <tr>
+                        <th class="px-4 py-2 text-left">Player</th>
+                        <th class="px-4 py-2 text-left">Team</th>
+                        <th class="px-4 py-2 text-center">Pos</th>
+                        <th class="px-4 py-2 text-left">League</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for p in players %}
+                    <tr class="hover:bg-gray-800/50">
+                        <td class="px-4 py-2">
+                            <a href="/player/{{ p.playername }}" class="text-blue-400 hover:text-blue-300 font-semibold">{{ p.playername }}</a>
+                        </td>
+                        <td class="px-4 py-2">
+                            <a href="/team/{{ p.teamname }}" class="hover:underline">{{ p.teamname }}</a>
+                        </td>
+                        <td class="px-4 py-2 text-center text-gray-400">{{ p.position }}</td>
+                        <td class="px-4 py-2 text-gray-400">{{ p.league }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="p-4 text-gray-500">No players found.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Teams -->
+    <div>
+        <h2 class="text-lg font-semibold text-gray-200 mb-3">Teams ({{ teams|length }})</h2>
+        <div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+            {% if teams %}
+            <table class="w-full text-sm">
+                <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
+                    <tr>
+                        <th class="px-4 py-2 text-left">Team</th>
+                        <th class="px-4 py-2 text-left">League</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for t in teams %}
+                    <tr class="hover:bg-gray-800/50">
+                        <td class="px-4 py-2">
+                            <a href="/team/{{ t.teamname }}" class="text-blue-400 hover:text-blue-300 font-semibold">{{ t.teamname }}</a>
+                        </td>
+                        <td class="px-4 py-2 text-gray-400">{{ t.league }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="p-4 text-gray-500">No teams found.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

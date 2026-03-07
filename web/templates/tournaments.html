@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Tournaments - LoL Esports Stats{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-6">Tournaments</h1>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for l in leagues %}
+    <a href="/tournament/{{ l.league }}/{{ l.to_year|int }}"
+       class="bg-gray-900 border border-gray-800 rounded-lg p-4 hover:bg-gray-800/50 transition block">
+        <div class="text-lg font-semibold text-blue-400">{{ l.league }}</div>
+        <div class="text-sm text-gray-400 mt-1">{{ l.from_year|int }} - {{ l.to_year|int }}</div>
+        <div class="text-xs text-gray-500 mt-1">{{ l.years|int }} seasons</div>
+    </a>
+    {% endfor %}
+</div>
+
+{% endblock %}
