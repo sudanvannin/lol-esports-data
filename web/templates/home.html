@@ -38,7 +38,7 @@
                 <div class="metric-note">Leagues with recent match activity</div>
             </div>
             <div class="metric-card">
-                <div class="metric-label">Schedule source</div>
+                <div class="metric-label">Schedule refresh</div>
                 <div class="metric-value metric-value-small">
                     {% if upcoming_meta and upcoming_meta.fetched_at %}
                     {{ upcoming_meta.fetched_at }}
@@ -46,7 +46,7 @@
                     Waiting
                     {% endif %}
                 </div>
-                <div class="metric-note">Last Leaguepedia schedule refresh</div>
+                <div class="metric-note">Latest web schedule snapshot{% if upcoming_meta and upcoming_meta.source %} via {{ upcoming_meta.source }}{% endif %}</div>
             </div>
         </div>
     </div>

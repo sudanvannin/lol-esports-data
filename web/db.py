@@ -7,6 +7,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
+from .official_schedule import load_official_schedule_snapshot
 from .upcoming_matches import load_upcoming_matches
 
 # ── Persistent connection with MotherDuck ──
@@ -16,6 +17,11 @@ _upcoming_cache_lock = threading.Lock()
 _upcoming_cache_df = None
 _upcoming_cache_meta = None
 _upcoming_cache_mtime = None
+_official_schedule_cache_lock = threading.Lock()
+_recent_cache_df = None
+_official_upcoming_cache_df = None
+_official_schedule_cache_meta = None
+_official_schedule_cache_mtime = None
 
 LEAGUE_DISPLAY_NAMES = {
     "FST": "First Stand",
@@ -147,11 +153,79 @@ def _load_local_upcoming_matches_cached():
         return upcoming_df.copy(), dict(upcoming_meta)
 
 
+def _load_local_official_schedule_cached():
+    """Load compact official schedule snapshot with mtime caching."""
+    global _recent_cache_df, _official_upcoming_cache_df
+    global _official_schedule_cache_meta, _official_schedule_cache_mtime
+
+    schedule_path = Path("data/bronze/official/web_schedule.json")
+    try:
+        current_mtime = (
+            schedule_path.stat().st_mtime if schedule_path.exists() else None
+        )
+    except OSError:
+        current_mtime = None
+
+    if _recent_cache_df is not None and _official_schedule_cache_mtime == current_mtime:
+        return (
+            _recent_cache_df.copy(),
+            _official_upcoming_cache_df.copy(),
+            dict(_official_schedule_cache_meta or {}),
+        )
+
+    with _official_schedule_cache_lock:
+        if (
+            _recent_cache_df is not None
+            and _official_schedule_cache_mtime == current_mtime
+        ):
+            return (
+                _recent_cache_df.copy(),
+                _official_upcoming_cache_df.copy(),
+                dict(_official_schedule_cache_meta or {}),
+            )
+
+        recent_df, upcoming_df, metadata = load_official_schedule_snapshot(
+            schedule_path
+        )
+        _recent_cache_df = recent_df
+        _official_upcoming_cache_df = upcoming_df
+        _official_schedule_cache_meta = metadata
+        _official_schedule_cache_mtime = current_mtime
+        return recent_df.copy(), upcoming_df.copy(), dict(metadata)
+
+
 def get_upcoming_matches(limit: int = 20, league: str | None = None):
     """Return normalized upcoming matches, preferring MotherDuck and falling back to local Leaguepedia bronze."""
     safe_league = league.replace("'", "''") if league else None
     con = _get_persistent_con()
     where_clause = f"WHERE league = '{safe_league}'" if safe_league else ""
+
+    try:
+        remote_df = con.execute(
+            f"""
+            SELECT
+                match_id,
+                match_time,
+                match_date,
+                league,
+                event_name,
+                phase_label,
+                team1,
+                team2,
+                best_of,
+                patch,
+                overview_page,
+                source
+            FROM web_upcoming_matches_live
+            {where_clause}
+            ORDER BY match_time ASC, league, team1, team2
+            LIMIT {limit}
+            """
+        ).fetchdf()
+        if len(remote_df) > 0:
+            return _with_league_labels(remote_df)
+    except duckdb.Error:
+        pass
 
     try:
         remote_df = con.execute(
@@ -176,14 +250,29 @@ def get_upcoming_matches(limit: int = 20, league: str | None = None):
             """
         ).fetchdf()
         if len(remote_df) > 0:
-            return remote_df
+            return _with_league_labels(remote_df)
     except duckdb.Error:
         pass
+
+    _, official_upcoming_df, _ = _load_local_official_schedule_cached()
+    if safe_league:
+        official_upcoming_df = official_upcoming_df.loc[
+            official_upcoming_df["league"] == safe_league
+        ].copy()
+    if not official_upcoming_df.empty:
+        return _with_league_labels(
+            official_upcoming_df.sort_values(
+                ["match_time", "league", "team1", "team2"],
+                kind="stable",
+            )
+            .head(limit)
+            .reset_index(drop=True)
+        )
 
     local_df, _ = _load_local_upcoming_matches_cached()
     if safe_league:
         local_df = local_df.loc[local_df["league"] == safe_league].copy()
-    return (
+    return _with_league_labels(
         local_df.sort_values(["match_time", "league", "team1", "team2"], kind="stable")
         .head(limit)
         .reset_index(drop=True)
@@ -197,20 +286,48 @@ def get_upcoming_match_leagues():
         remote_df = con.execute(
             """
             SELECT league, COUNT(*) AS total_matches, MIN(match_time) AS next_match_time
+            FROM web_upcoming_matches_live
+            GROUP BY league
+            ORDER BY next_match_time ASC, league
+            """
+        ).fetchdf()
+        if len(remote_df) > 0:
+            return _with_league_labels(remote_df)
+    except duckdb.Error:
+        pass
+
+    try:
+        remote_df = con.execute(
+            """
+            SELECT league, COUNT(*) AS total_matches, MIN(match_time) AS next_match_time
             FROM web_upcoming_matches
             GROUP BY league
             ORDER BY next_match_time ASC, league
             """
         ).fetchdf()
         if len(remote_df) > 0:
-            return remote_df
+            return _with_league_labels(remote_df)
     except duckdb.Error:
         pass
 
+    _, official_upcoming_df, _ = _load_local_official_schedule_cached()
+    if not official_upcoming_df.empty:
+        return _with_league_labels(
+            official_upcoming_df.groupby("league", as_index=False)
+            .agg(
+                total_matches=("match_id", "count"),
+                next_match_time=("match_time", "min"),
+            )
+            .sort_values(["next_match_time", "league"], kind="stable")
+            .reset_index(drop=True)
+        )
+
     local_df, _ = _load_local_upcoming_matches_cached()
     if local_df.empty:
-        return pd.DataFrame(columns=["league", "total_matches", "next_match_time"])
-    return (
+        return _with_league_labels(
+            pd.DataFrame(columns=["league", "total_matches", "next_match_time"])
+        )
+    return _with_league_labels(
         local_df.groupby("league", as_index=False)
         .agg(total_matches=("match_id", "count"), next_match_time=("match_time", "min"))
         .sort_values(["next_match_time", "league"], kind="stable")
@@ -221,6 +338,21 @@ def get_upcoming_match_leagues():
 def get_upcoming_matches_meta():
     """Return metadata about the upcoming schedule source."""
     con = _get_persistent_con()
+    try:
+        remote_meta = con.execute(
+            """
+            SELECT fetched_at, row_count, event_count, pages_fetched, lookback_days, source_path, source
+            FROM web_upcoming_matches_live_meta
+            LIMIT 1
+            """
+        ).fetchdf()
+        if len(remote_meta) > 0:
+            row = remote_meta.iloc[0].to_dict()
+            row["source"] = row.get("source") or "motherduck_official_schedule"
+            return row
+    except duckdb.Error:
+        pass
+
     try:
         remote_meta = con.execute(
             """
@@ -235,6 +367,20 @@ def get_upcoming_matches_meta():
             return row
     except duckdb.Error:
         pass
+
+    _, official_upcoming_df, official_meta = _load_local_official_schedule_cached()
+    if not official_upcoming_df.empty:
+        return {
+            "fetched_at": official_meta.get("fetched_at"),
+            "row_count": int(
+                official_meta.get("upcoming_row_count", len(official_upcoming_df))
+            ),
+            "event_count": int(official_meta.get("event_count", 0)),
+            "pages_fetched": int(official_meta.get("pages_fetched", 0)),
+            "lookback_days": int(official_meta.get("recent_lookback_days", 0)),
+            "source_path": official_meta.get("path"),
+            "source": official_meta.get("source", "riot_official_schedule"),
+        }
 
     _, local_meta = _load_local_upcoming_matches_cached()
     return {
@@ -251,29 +397,101 @@ def get_upcoming_matches_meta():
 
 
 def get_recent_series(limit: int = 20):
+    con = _get_persistent_con()
+    try:
+        remote_df = con.execute(
+            f"""
+            SELECT
+                match_date,
+                league,
+                team1,
+                team2,
+                score,
+                series_winner,
+                series_format,
+                tournament_phase
+            FROM web_recent_matches_live
+            ORDER BY match_time DESC, league, team1, team2
+            LIMIT {limit}
+            """
+        ).fetchdf()
+        if len(remote_df) > 0:
+            return _with_league_labels(remote_df)
+    except duckdb.Error:
+        pass
+
+    recent_df, _, _ = _load_local_official_schedule_cached()
+    if not recent_df.empty:
+        local_recent = recent_df.rename(columns={"match_time": "match_date"})
+        return _with_league_labels(
+            local_recent[
+                [
+                    "match_date",
+                    "league",
+                    "team1",
+                    "team2",
+                    "score",
+                    "series_winner",
+                    "series_format",
+                    "tournament_phase",
+                ]
+            ]
+            .sort_values(
+                ["match_date", "league", "team1", "team2"],
+                ascending=[False, True, True, True],
+                kind="stable",
+            )
+            .head(limit)
+            .reset_index(drop=True)
+        )
+
     return _with_league_labels(
         query_df(
             f"""
-        SELECT match_date, league, team1, team2, score, series_winner,
-               series_format, tournament_phase
-        FROM series
-        ORDER BY match_date DESC
-        LIMIT {limit}
-    """
+            SELECT match_date, league, team1, team2, score, series_winner,
+                   series_format, tournament_phase
+            FROM series
+            ORDER BY match_date DESC
+            LIMIT {limit}
+        """
         )
     )
 
 
 def get_active_leagues():
+    con = _get_persistent_con()
+    try:
+        remote_df = con.execute(
+            """
+            SELECT league, MAX(match_time) AS last_match, COUNT(*) AS total_series
+            FROM web_recent_matches_live
+            GROUP BY league
+            ORDER BY last_match DESC
+            """
+        ).fetchdf()
+        if len(remote_df) > 0:
+            return _with_league_labels(remote_df)
+    except duckdb.Error:
+        pass
+
+    recent_df, _, _ = _load_local_official_schedule_cached()
+    if not recent_df.empty:
+        return _with_league_labels(
+            recent_df.groupby("league", as_index=False)
+            .agg(last_match=("match_time", "max"), total_series=("match_id", "count"))
+            .sort_values("last_match", ascending=False, kind="stable")
+            .reset_index(drop=True)
+        )
+
     return _with_league_labels(
         query_df(
             """
-        SELECT league, MAX(match_date) as last_match, COUNT(*) as total_series
-        FROM series
-        WHERE match_date >= CURRENT_DATE - INTERVAL '30 days'
-        GROUP BY league
-        ORDER BY last_match DESC
-    """
+            SELECT league, MAX(match_date) as last_match, COUNT(*) as total_series
+            FROM series
+            WHERE match_date >= CURRENT_DATE - INTERVAL '30 days'
+            GROUP BY league
+            ORDER BY last_match DESC
+        """
         )
     )
 
