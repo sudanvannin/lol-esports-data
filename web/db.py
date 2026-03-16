@@ -1,5 +1,6 @@
 """DuckDB query engine for Silver Parquet data."""
 
+import json
 import os
 import threading
 from pathlib import Path
@@ -277,6 +278,237 @@ def get_upcoming_matches(limit: int = 20, league: str | None = None):
         .head(limit)
         .reset_index(drop=True)
     )
+
+
+def get_upcoming_match(match_id: str):
+    """Return a single upcoming match by id across the fast-lane sources."""
+    safe_match_id = match_id.replace("'", "''")
+    con = _get_persistent_con()
+
+    for table_name in ("web_upcoming_matches_live", "web_upcoming_matches"):
+        try:
+            remote_df = con.execute(
+                f"""
+                SELECT
+                    match_id,
+                    match_time,
+                    match_date,
+                    league,
+                    event_name,
+                    phase_label,
+                    team1,
+                    team2,
+                    best_of,
+                    patch,
+                    overview_page,
+                    source
+                FROM {table_name}
+                WHERE match_id = '{safe_match_id}'
+                LIMIT 1
+                """
+            ).fetchdf()
+            if len(remote_df) > 0:
+                return _with_league_labels_row(remote_df.iloc[0].to_dict())
+        except duckdb.Error:
+            pass
+
+    _, official_upcoming_df, _ = _load_local_official_schedule_cached()
+    if not official_upcoming_df.empty:
+        match_df = official_upcoming_df.loc[
+            official_upcoming_df["match_id"] == match_id
+        ].head(1)
+        if not match_df.empty:
+            return _with_league_labels_row(match_df.iloc[0].to_dict())
+
+    local_df, _ = _load_local_upcoming_matches_cached()
+    match_df = local_df.loc[local_df["match_id"] == match_id].head(1)
+    if match_df.empty:
+        return None
+    return _with_league_labels_row(match_df.iloc[0].to_dict())
+
+
+def get_prob_win_matches(match_ids: list[str] | None = None):
+    """Return precomputed winner probabilities for upcoming matches when available."""
+    con = _get_persistent_con()
+    where_clause = ""
+    if match_ids:
+        safe_ids = [item.replace("'", "''") for item in match_ids if item]
+        if safe_ids:
+            values = ", ".join(f"'{value}'" for value in safe_ids)
+            where_clause = f"WHERE match_id IN ({values})"
+
+    try:
+        remote_df = con.execute(
+            f"""
+            SELECT
+                match_id,
+                winner_available,
+                winner_error,
+                team1_win_prob,
+                team2_win_prob,
+                team1_win_pct,
+                team2_win_pct,
+                team1_fair_odds,
+                team2_fair_odds,
+                favorite_name,
+                favorite_prob_pct,
+                warnings_json
+            FROM web_prob_win_matches
+            {where_clause}
+            """
+        ).fetchdf()
+        return remote_df
+    except duckdb.Error:
+        return pd.DataFrame(
+            columns=[
+                "match_id",
+                "winner_available",
+                "winner_error",
+                "team1_win_prob",
+                "team2_win_prob",
+                "team1_win_pct",
+                "team2_win_pct",
+                "team1_fair_odds",
+                "team2_fair_odds",
+                "favorite_name",
+                "favorite_prob_pct",
+                "warnings_json",
+            ]
+        )
+
+
+def get_prob_win_detail(match_id: str):
+    """Return precomputed winner and totals markets for one upcoming match."""
+    safe_match_id = match_id.replace("'", "''")
+    con = _get_persistent_con()
+
+    try:
+        match_df = con.execute(
+            f"""
+            SELECT
+                match_id,
+                match_time,
+                match_date,
+                league,
+                league_label,
+                event_name,
+                phase_label,
+                team1,
+                team2,
+                best_of,
+                patch,
+                league_code,
+                split_name,
+                playoffs,
+                winner_available,
+                winner_error,
+                team1_win_prob,
+                team2_win_prob,
+                team1_win_pct,
+                team2_win_pct,
+                team1_fair_odds,
+                team2_fair_odds,
+                favorite_name,
+                favorite_prob_pct,
+                totals_available,
+                totals_error,
+                warnings_json
+            FROM web_prob_win_matches
+            WHERE match_id = '{safe_match_id}'
+            LIMIT 1
+            """
+        ).fetchdf()
+    except duckdb.Error:
+        return None
+
+    if match_df.empty:
+        return None
+
+    match_row = match_df.iloc[0].to_dict()
+    try:
+        totals_df = con.execute(
+            f"""
+            SELECT
+                match_id,
+                market_key,
+                market_label,
+                line,
+                predicted_mean,
+                distribution,
+                over_prob,
+                under_prob,
+                over_prob_pct,
+                under_prob_pct,
+                over_fair_odds,
+                under_fair_odds,
+                team1_sample,
+                team2_sample,
+                baseline_sample
+            FROM web_prob_win_totals
+            WHERE match_id = '{safe_match_id}'
+            ORDER BY market_key
+            """
+        ).fetchdf()
+    except duckdb.Error:
+        totals_df = pd.DataFrame()
+
+    warnings = []
+    warnings_json = match_row.get("warnings_json")
+    if warnings_json:
+        try:
+            warnings = json.loads(warnings_json)
+        except json.JSONDecodeError:
+            warnings = [_clean for _clean in [warnings_json] if _clean]
+
+    return {
+        "match": {
+            "match_id": match_row.get("match_id"),
+            "match_time": match_row.get("match_time"),
+            "match_date": match_row.get("match_date"),
+            "league": match_row.get("league"),
+            "league_label": match_row.get("league_label"),
+            "event_name": match_row.get("event_name"),
+            "phase_label": match_row.get("phase_label"),
+            "team1": match_row.get("team1"),
+            "team2": match_row.get("team2"),
+            "best_of": match_row.get("best_of"),
+            "patch": match_row.get("patch"),
+        },
+        "context": {
+            "league_code": match_row.get("league_code"),
+            "split_name": match_row.get("split_name"),
+            "patch_version": match_row.get("patch"),
+            "best_of": int(match_row.get("best_of") or 0),
+            "playoffs": bool(match_row.get("playoffs")),
+        },
+        "winner_market": {
+            "available": bool(match_row.get("winner_available")),
+            "error": match_row.get("winner_error"),
+            "team1_name": match_row.get("team1"),
+            "team2_name": match_row.get("team2"),
+            "team1_win_prob": match_row.get("team1_win_prob"),
+            "team2_win_prob": match_row.get("team2_win_prob"),
+            "team1_win_pct": match_row.get("team1_win_pct"),
+            "team2_win_pct": match_row.get("team2_win_pct"),
+            "team1_fair_odds": match_row.get("team1_fair_odds"),
+            "team2_fair_odds": match_row.get("team2_fair_odds"),
+            "favorite_name": match_row.get("favorite_name"),
+            "favorite_prob_pct": match_row.get("favorite_prob_pct"),
+        },
+        "totals_market": {
+            "available": bool(match_row.get("totals_available")),
+            "error": match_row.get("totals_error"),
+            "markets": totals_df.to_dict("records"),
+        },
+        "warnings": warnings,
+        "has_any_market": bool(
+            match_row.get("winner_available") or match_row.get("totals_available")
+        ),
+        "confidence_gap_pct": abs(
+            float(match_row.get("team1_win_pct") or 0.0)
+            - float(match_row.get("team2_win_pct") or 0.0)
+        ),
+    }
 
 
 def get_upcoming_match_leagues():

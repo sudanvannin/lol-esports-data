@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import db
+from . import db, prob_win
 
 app = FastAPI(title="LoL Esports Stats")
 
@@ -93,6 +93,72 @@ async def upcoming(
             "rows": upcoming_matches.to_dict("records"),
             "league": league,
             "available_leagues": upcoming_leagues.to_dict("records"),
+            "upcoming_meta": upcoming_meta,
+        },
+    )
+
+
+@app.get("/prob-win", response_class=HTMLResponse)
+async def prob_win_page(
+    request: Request,
+    match_id: str = Query(None),
+    league: str = Query(None),
+):
+    upcoming_matches = db.get_upcoming_matches(limit=24, league=league)
+    rows = upcoming_matches.to_dict("records")
+    match_ids = [row.get("match_id") for row in rows if row.get("match_id")]
+    predictions = db.get_prob_win_matches(match_ids)
+    predictions_map = {
+        row["match_id"]: row
+        for row in predictions.to_dict("records")
+        if row.get("match_id")
+    }
+
+    board_rows = []
+    for row in rows:
+        card = dict(row)
+        prediction = predictions_map.get(card.get("match_id"))
+        if prediction:
+            card["winner_market"] = {
+                "available": bool(prediction.get("winner_available")),
+                "error": prediction.get("winner_error"),
+                "team1_name": card.get("team1"),
+                "team2_name": card.get("team2"),
+                "team1_win_prob": prediction.get("team1_win_prob"),
+                "team2_win_prob": prediction.get("team2_win_prob"),
+                "team1_win_pct": prediction.get("team1_win_pct"),
+                "team2_win_pct": prediction.get("team2_win_pct"),
+                "team1_fair_odds": prediction.get("team1_fair_odds"),
+                "team2_fair_odds": prediction.get("team2_fair_odds"),
+                "favorite_name": prediction.get("favorite_name"),
+                "favorite_prob_pct": prediction.get("favorite_prob_pct"),
+                "warnings": [],
+            }
+        else:
+            card["winner_market"] = None
+        board_rows.append(card)
+
+    selected_match = (
+        db.get_upcoming_match(match_id) if match_id else (rows[0] if rows else None)
+    )
+    detail = (
+        db.get_prob_win_detail(selected_match["match_id"]) if selected_match else None
+    )
+    if detail is None and selected_match and match_id:
+        detail = prob_win.build_prob_win_detail(selected_match)
+    upcoming_meta = db.get_upcoming_matches_meta()
+    available_leagues = db.get_upcoming_match_leagues()
+    return templates.TemplateResponse(
+        "prob_win.html",
+        {
+            "request": request,
+            "rows": board_rows,
+            "selected_match_id": (
+                selected_match.get("match_id") if selected_match else None
+            ),
+            "detail": detail,
+            "league": league,
+            "available_leagues": available_leagues.to_dict("records"),
             "upcoming_meta": upcoming_meta,
         },
     )

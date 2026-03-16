@@ -79,10 +79,16 @@
                     {{ featured_match.phase_label }}
                 </div>
                 {% endif %}
-                <a href="/upcoming" class="inline-flex w-fit items-center gap-2 text-sm font-semibold text-cyan-300 hover:text-cyan-200">
-                    See the full slate
-                    <span aria-hidden="true">-></span>
-                </a>
+                <div class="flex flex-wrap gap-3">
+                    <a href="/prob-win?match_id={{ featured_match.match_id | urlencode }}" class="inline-flex w-fit items-center gap-2 text-sm font-semibold text-cyan-300 hover:text-cyan-200">
+                        Open Prob Win
+                        <span aria-hidden="true">-></span>
+                    </a>
+                    <a href="/upcoming" class="inline-flex w-fit items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white">
+                        See the full slate
+                        <span aria-hidden="true">-></span>
+                    </a>
+                </div>
             </div>
             {% else %}
             <div class="mt-3 rounded-2xl border border-dashed border-slate-800 bg-slate-900/50 px-4 py-5 text-sm text-slate-500">
@@ -186,7 +192,7 @@
             <div class="mt-4 space-y-3">
                 {% if upcoming_matches %}
                     {% for m in upcoming_matches %}
-                    <div class="upcoming-card">
+                    <a href="/prob-win?match_id={{ m.match_id | urlencode }}" class="upcoming-card">
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <div class="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">{{ m.league_label or m.league }}</div>
@@ -204,7 +210,7 @@
                                 {% endif %}
                             </div>
                         </div>
-                    </div>
+                    </a>
                     {% endfor %}
                 {% else %}
                     <p class="text-sm text-slate-500">No upcoming matches available.</p>

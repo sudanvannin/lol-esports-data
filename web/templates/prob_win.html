@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}LoL Esports Stats - Prob Win{% endblock %}
+{% block content %}
+
+<div class="flex flex-col gap-6">
+    <section class="rounded-2xl border border-gray-800 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 p-6">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <div class="text-xs uppercase tracking-[0.24em] text-cyan-300">Model board</div>
+                <h1 class="mt-2 text-3xl font-semibold text-gray-100">Prob Win</h1>
+                <p class="mt-2 max-w-2xl text-sm text-gray-400">
+                    Upcoming matches scored by the current prematch model, with fair winner odds and secondary totals markets.
+                </p>
+            </div>
+            <form method="get" action="/prob-win" class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <label class="text-xs text-gray-500">
+                    League
+                    <select name="league" class="mt-1 w-56 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-200 focus:border-cyan-500 focus:outline-none">
+                        <option value="">All leagues</option>
+                        {% for option in available_leagues %}
+                        <option value="{{ option.league }}" {% if league == option.league %}selected{% endif %}>
+                            {{ option.league_label or option.league }} ({{ option.total_matches }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="flex gap-2">
+                    <button type="submit" class="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500">
+                        Filter
+                    </button>
+                    {% if league %}
+                    <a href="/prob-win" class="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">
+                        Reset
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+        {% if upcoming_meta %}
+        <div class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+            <span>Source: {{ upcoming_meta.source }}</span>
+            {% if upcoming_meta.fetched_at %}<span>Fetched at: {{ upcoming_meta.fetched_at }}</span>{% endif %}
+            {% if upcoming_meta.row_count is not none %}<span>Rows: {{ upcoming_meta.row_count }}</span>{% endif %}
+        </div>
+        {% endif %}
+    </section>
+
+    <div class="grid gap-6 xl:grid-cols-[0.95fr_1.25fr]">
+        <aside class="rounded-2xl border border-gray-800 bg-gray-900 p-4">
+            <div class="mb-4 flex items-center justify-between gap-3">
+                <div>
+                    <div class="text-xs uppercase tracking-[0.18em] text-gray-500">Slate</div>
+                    <h2 class="text-xl font-semibold text-white">Upcoming board</h2>
+                </div>
+                <span class="rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-400">{{ rows|length }} matches</span>
+            </div>
+
+            <div class="space-y-3">
+                {% if rows %}
+                    {% for row in rows %}
+                    {% set winner = row.winner_market %}
+                    <a
+                        href="/prob-win?match_id={{ row.match_id | urlencode }}{% if league %}&league={{ league | urlencode }}{% endif %}"
+                        class="block rounded-2xl border px-4 py-4 transition {% if selected_match_id == row.match_id %}border-cyan-500 bg-cyan-500/10{% else %}border-gray-800 bg-gray-950/70 hover:border-cyan-700 hover:bg-gray-950{% endif %}"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">{{ row.league_label or row.league }}</div>
+                                <div class="mt-2 text-sm font-semibold text-white">{{ row.team1 }} vs {{ row.team2 }}</div>
+                                <div class="mt-1 text-xs text-gray-500">{{ row.match_time.strftime('%m-%d %H:%M') if row.match_time else '' }} UTC</div>
+                            </div>
+                            <div class="text-right text-xs text-gray-500">
+                                <div>Bo{{ row.best_of if row.best_of else '?' }}</div>
+                                {% if row.patch %}<div>Patch {{ row.patch }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        {% if winner and winner.available %}
+                        <div class="mt-4 space-y-2">
+                            <div class="flex items-center justify-between text-xs text-gray-400">
+                                <span>{{ winner.team1_name }}</span>
+                                <span>{{ "%.1f"|format(winner.team1_win_pct) }}%</span>
+                            </div>
+                            <div class="h-2 overflow-hidden rounded-full bg-gray-800">
+                                <div class="h-full rounded-full bg-cyan-400" style="width: {{ winner.team1_win_pct }}%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs text-gray-400">
+                                <span>{{ winner.team2_name }}</span>
+                                <span>{{ "%.1f"|format(winner.team2_win_pct) }}%</span>
+                            </div>
+                            <div class="mt-2 flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-gray-500">
+                                <span>Favorite</span>
+                                <span class="text-cyan-300">{{ winner.favorite_name }} {{ "%.1f"|format(winner.favorite_prob_pct) }}%</span>
+                            </div>
+                        </div>
+                        {% elif winner %}
+                        <div class="mt-4 rounded-xl border border-amber-800/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                            {{ winner.error }}
+                        </div>
+                        {% else %}
+                        <div class="mt-4 rounded-xl border border-gray-800 bg-gray-900/80 px-3 py-2 text-xs text-gray-500">
+                            Click to load model output for this matchup.
+                        </div>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <div class="rounded-2xl border border-dashed border-gray-800 bg-gray-950/40 px-4 py-10 text-center text-sm text-gray-500">
+                        No upcoming matches available for this filter.
+                    </div>
+                {% endif %}
+            </div>
+        </aside>
+
+        <section class="rounded-2xl border border-gray-800 bg-gray-900 p-6">
+            {% if detail %}
+            <div class="flex flex-col gap-5">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <div class="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">{{ detail.match.league_label or detail.match.league }}</div>
+                        <h2 class="mt-2 text-3xl font-semibold text-white">{{ detail.match.team1 }} vs {{ detail.match.team2 }}</h2>
+                        <div class="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+                            <span>{{ detail.match.event_name }}</span>
+                            {% if detail.match.phase_label %}<span>{{ detail.match.phase_label }}</span>{% endif %}
+                            <span>{{ detail.match.match_time.strftime('%Y-%m-%d %H:%M') if detail.match.match_time else '' }} UTC</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <span class="rounded-full border border-gray-700 px-3 py-1 text-gray-300">Bo{{ detail.context.best_of }}</span>
+                        <span class="rounded-full border border-gray-700 px-3 py-1 text-gray-300">{{ detail.context.league_code }}</span>
+                        <span class="rounded-full border border-gray-700 px-3 py-1 text-gray-300">Split {{ detail.context.split_name }}</span>
+                        <span class="rounded-full border border-gray-700 px-3 py-1 text-gray-300">Patch {{ detail.context.patch_version }}</span>
+                    </div>
+                </div>
+
+                {% if detail.warnings %}
+                <div class="rounded-2xl border border-amber-800/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                    <div class="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">Warnings</div>
+                    <ul class="space-y-1">
+                        {% for warning in detail.warnings %}
+                        <li>{{ warning }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <div class="grid gap-4 lg:grid-cols-2">
+                    {% if detail.winner_market.available %}
+                    <div class="rounded-2xl border border-gray-800 bg-gray-950/70 p-5">
+                        <div class="text-xs uppercase tracking-[0.18em] text-gray-500">Winner market</div>
+                        <h3 class="mt-2 text-xl font-semibold text-white">Fair match odds</h3>
+                        <div class="mt-4 space-y-4">
+                            <div>
+                                <div class="mb-1 flex items-center justify-between text-sm text-gray-300">
+                                    <span>{{ detail.winner_market.team1_name }}</span>
+                                    <span>{{ "%.1f"|format(detail.winner_market.team1_win_pct) }}%</span>
+                                </div>
+                                <div class="h-3 overflow-hidden rounded-full bg-gray-800">
+                                    <div class="h-full rounded-full bg-cyan-400" style="width: {{ detail.winner_market.team1_win_pct }}%"></div>
+                                </div>
+                                <div class="mt-1 text-xs text-gray-500">Fair odd {{ "%.2f"|format(detail.winner_market.team1_fair_odds) }}</div>
+                            </div>
+                            <div>
+                                <div class="mb-1 flex items-center justify-between text-sm text-gray-300">
+                                    <span>{{ detail.winner_market.team2_name }}</span>
+                                    <span>{{ "%.1f"|format(detail.winner_market.team2_win_pct) }}%</span>
+                                </div>
+                                <div class="h-3 overflow-hidden rounded-full bg-gray-800">
+                                    <div class="h-full rounded-full bg-fuchsia-400" style="width: {{ detail.winner_market.team2_win_pct }}%"></div>
+                                </div>
+                                <div class="mt-1 text-xs text-gray-500">Fair odd {{ "%.2f"|format(detail.winner_market.team2_fair_odds) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="rounded-2xl border border-gray-800 bg-gray-950/70 p-5">
+                        <div class="text-xs uppercase tracking-[0.18em] text-gray-500">Winner market</div>
+                        <h3 class="mt-2 text-xl font-semibold text-white">Unavailable</h3>
+                        <p class="mt-3 text-sm text-gray-400">{{ detail.winner_market.error }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="rounded-2xl border border-gray-800 bg-gray-950/70 p-5">
+                        <div class="text-xs uppercase tracking-[0.18em] text-gray-500">Context</div>
+                        <h3 class="mt-2 text-xl font-semibold text-white">Model inputs</h3>
+                        <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                            <div class="rounded-xl border border-gray-800 bg-gray-900/80 p-3">
+                                <dt class="text-xs uppercase tracking-[0.14em] text-gray-500">League code</dt>
+                                <dd class="mt-1 font-semibold text-white">{{ detail.context.league_code }}</dd>
+                            </div>
+                            <div class="rounded-xl border border-gray-800 bg-gray-900/80 p-3">
+                                <dt class="text-xs uppercase tracking-[0.14em] text-gray-500">Split</dt>
+                                <dd class="mt-1 font-semibold text-white">{{ detail.context.split_name }}</dd>
+                            </div>
+                            <div class="rounded-xl border border-gray-800 bg-gray-900/80 p-3">
+                                <dt class="text-xs uppercase tracking-[0.14em] text-gray-500">Patch</dt>
+                                <dd class="mt-1 font-semibold text-white">{{ detail.context.patch_version }}</dd>
+                            </div>
+                            <div class="rounded-xl border border-gray-800 bg-gray-900/80 p-3">
+                                <dt class="text-xs uppercase tracking-[0.14em] text-gray-500">Playoffs</dt>
+                                <dd class="mt-1 font-semibold text-white">{{ "Yes" if detail.context.playoffs else "No" }}</dd>
+                            </div>
+                        </dl>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-gray-800 bg-gray-950/70 p-5">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-xs uppercase tracking-[0.18em] text-gray-500">Secondary markets</div>
+                            <h3 class="mt-2 text-xl font-semibold text-white">Fair totals lines</h3>
+                        </div>
+                        {% if detail.totals_market.available %}
+                        <span class="rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-400">{{ detail.totals_market.markets|length }} markets</span>
+                        {% endif %}
+                    </div>
+
+                    {% if detail.totals_market.available %}
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="w-full min-w-[760px] text-sm">
+                            <thead class="text-xs uppercase tracking-[0.14em] text-gray-500">
+                                <tr class="border-b border-gray-800">
+                                    <th class="px-3 py-3 text-left">Market</th>
+                                    <th class="px-3 py-3 text-center">Line</th>
+                                    <th class="px-3 py-3 text-center">Over %</th>
+                                    <th class="px-3 py-3 text-center">Over fair</th>
+                                    <th class="px-3 py-3 text-center">Under %</th>
+                                    <th class="px-3 py-3 text-center">Under fair</th>
+                                    <th class="px-3 py-3 text-center">Mean</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-800">
+                                {% for market in detail.totals_market.markets %}
+                                <tr>
+                                    <td class="px-3 py-3 text-gray-200">
+                                        <div class="font-semibold">{{ market.market_label }}</div>
+                                        <div class="text-xs text-gray-500">{{ market.distribution }}</div>
+                                    </td>
+                                    <td class="px-3 py-3 text-center text-gray-300">{{ "%.1f"|format(market.line) }}</td>
+                                    <td class="px-3 py-3 text-center text-cyan-300">{{ "%.1f"|format(market.over_prob_pct) }}%</td>
+                                    <td class="px-3 py-3 text-center text-white">{{ "%.2f"|format(market.over_fair_odds) }}</td>
+                                    <td class="px-3 py-3 text-center text-fuchsia-300">{{ "%.1f"|format(market.under_prob_pct) }}%</td>
+                                    <td class="px-3 py-3 text-center text-white">{{ "%.2f"|format(market.under_fair_odds) }}</td>
+                                    <td class="px-3 py-3 text-center text-gray-400">{{ "%.2f"|format(market.predicted_mean) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="mt-4 text-sm text-gray-400">{{ detail.totals_market.error }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="rounded-2xl border border-dashed border-gray-800 bg-gray-950/40 px-4 py-10 text-center text-sm text-gray-500">
+                No upcoming match selected.
+            </div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+
+{% endblock %}

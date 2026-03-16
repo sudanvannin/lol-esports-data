@@ -57,6 +57,7 @@
                     <th class="px-4 py-3 text-center">Bo</th>
                     <th class="px-4 py-3 text-left">Team 2</th>
                     <th class="px-4 py-3 text-left">Patch</th>
+                    <th class="px-4 py-3 text-right">Model</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-800">
@@ -73,11 +74,16 @@
                         <td class="px-4 py-3 text-center text-gray-500">{{ row.best_of if row.best_of else '?' }}</td>
                         <td class="px-4 py-3 text-gray-100">{{ row.team2 }}</td>
                         <td class="px-4 py-3 text-gray-500">{{ row.patch or '-' }}</td>
+                        <td class="px-4 py-3 text-right">
+                            <a href="/prob-win?match_id={{ row.match_id | urlencode }}" class="inline-flex rounded-lg border border-cyan-700/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300 hover:bg-cyan-500/10">
+                                Prob Win
+                            </a>
+                        </td>
                     </tr>
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="8" class="px-4 py-8 text-center text-sm text-gray-500">
+                        <td colspan="9" class="px-4 py-8 text-center text-sm text-gray-500">
                             No upcoming matches available for this filter.
                         </td>
                     </tr>
