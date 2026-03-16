@@ -7,7 +7,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-from src.upcoming_matches import load_upcoming_matches
+from .upcoming_matches import load_upcoming_matches
 
 # ── Persistent connection with MotherDuck ──
 _lock = threading.Lock()
