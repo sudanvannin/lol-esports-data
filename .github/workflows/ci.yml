@@ -84,21 +84,33 @@ jobs:
     name: Validate Airflow DAGs
     runs-on: ubuntu-latest
     needs: lint
-    if: ${{ hashFiles('dags/**/*.py') != '' }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect DAG files
+        id: detect_dags
+        shell: bash
+        run: |
+          if [ -d dags ] && find dags -type f -name '*.py' -print -quit | grep -q .; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Python
+        if: steps.detect_dags.outputs.present == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install Airflow
+        if: steps.detect_dags.outputs.present == 'true'
         run: |
           pip install apache-airflow==2.8.1
           export AIRFLOW_HOME=$(pwd)
 
       - name: Validate DAGs
+        if: steps.detect_dags.outputs.present == 'true'
         run: |
           python -c "
           import sys
@@ -112,3 +124,7 @@ jobs:
               sys.exit(1)
           print(f'Successfully validated {len(dag_bag.dags)} DAGs')
           "
+
+      - name: Skip DAG validation
+        if: steps.detect_dags.outputs.present != 'true'
+        run: echo "No Airflow DAG files found; skipping validation."
