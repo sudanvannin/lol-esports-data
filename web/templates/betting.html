@@ -13,7 +13,7 @@
         <select name="league" class="rounded border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-200 focus:border-amber-400 focus:outline-none">
             <option value="">All Leagues</option>
             {% for l in available_leagues %}
-            <option value="{{ l }}" {% if league == l %}selected{% endif %}>{{ l }}</option>
+            <option value="{{ l }}" {% if league == l %}selected{% endif %}>{{ 'LCK Academy Series' if l == 'LAS' else l }}</option>
             {% endfor %}
         </select>
     </div>
@@ -123,7 +123,7 @@
                 <td class="px-3 py-2.5 font-semibold">
                     <a href="/team/{{ r.teamname }}" class="text-white hover:text-amber-300">{{ r.teamname }}</a>
                 </td>
-                <td class="px-3 py-2.5 text-xs text-slate-500">{{ r.league }}</td>
+                <td class="px-3 py-2.5 text-xs text-slate-500">{{ r.league_label or r.league }}</td>
                 <td class="px-3 py-2.5 text-center text-slate-500">{{ r.games }}</td>
 
                 <td class="px-3 py-2.5 text-center font-semibold">

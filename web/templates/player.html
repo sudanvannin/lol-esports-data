@@ -10,7 +10,7 @@
         <span class="text-gray-600">|</span>
         <span class="uppercase text-xs bg-gray-800 px-2 py-0.5 rounded">{{ info.position }}</span>
         <span class="text-gray-600">|</span>
-        <span>{{ info.league }}</span>
+        <span>{{ info.league_label or info.league }}</span>
     </div>
 </div>
 
@@ -166,7 +166,7 @@
                 <tr class="hover:bg-gray-800/50 {% if g.result == 1 %}win{% else %}loss{% endif %}">
                     <td class="px-3 py-2 text-gray-400">{{ g.game_date.strftime('%Y-%m-%d') if g.game_date else '' }}</td>
                     <td class="px-3 py-2">
-                        <a href="/tournament/{{ g.league }}/{{ g.game_date.year if g.game_date else '' }}" class="text-blue-400 hover:text-blue-300">{{ g.league }}</a>
+                        <a href="/tournament/{{ g.league }}/{{ g.game_date.year if g.game_date else '' }}" class="text-blue-400 hover:text-blue-300">{{ g.league_label or g.league }}</a>
                     </td>
                     <td class="px-3 py-2 font-semibold">{{ g.champion }}</td>
                     <td class="px-3 py-2 text-center">{{ g.kills|int }}/{{ g.deaths|int }}/{{ g.assists|int }}</td>

@@ -19,7 +19,7 @@
                         <option value="">All leagues</option>
                         {% for option in available_leagues %}
                         <option value="{{ option.league }}" {% if league == option.league %}selected{% endif %}>
-                            {{ option.league }} ({{ option.total_matches }})
+                            {{ option.league_label or option.league }} ({{ option.total_matches }})
                         </option>
                         {% endfor %}
                     </select>
@@ -66,7 +66,7 @@
                         <td class="px-4 py-3 font-mono text-gray-300">
                             {{ row.match_time.strftime('%Y-%m-%d %H:%M') if row.match_time else '' }}
                         </td>
-                        <td class="px-4 py-3 text-blue-400">{{ row.league }}</td>
+                        <td class="px-4 py-3 text-blue-400">{{ row.league_label or row.league }}</td>
                         <td class="px-4 py-3 text-gray-300">{{ row.event_name }}</td>
                         <td class="px-4 py-3 text-xs text-gray-500">{{ row.phase_label or '-' }}</td>
                         <td class="px-4 py-3 text-right text-gray-100">{{ row.team1 }}</td>

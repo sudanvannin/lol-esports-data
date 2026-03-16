@@ -60,7 +60,7 @@
             <div class="mt-3 flex flex-col gap-5">
                 <div class="flex items-center justify-between gap-4">
                     <div>
-                        <div class="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">{{ featured_match.league }}</div>
+                        <div class="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">{{ featured_match.league_label or featured_match.league }}</div>
                         <div class="mt-2 text-3xl font-semibold text-white">{{ featured_match.team1 }}</div>
                         <div class="text-sm text-slate-500">versus</div>
                         <div class="text-3xl font-semibold text-white">{{ featured_match.team2 }}</div>
@@ -150,7 +150,7 @@
                     <tr>
                         <td class="home-table-muted">{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}</td>
                         <td>
-                            <a href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}" class="home-table-link">{{ s.league }}</a>
+                            <a href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}" class="home-table-link">{{ s.league_label or s.league }}</a>
                         </td>
                         <td class="home-table-muted text-xs">{{ s.tournament_phase or '' }}</td>
                         <td class="text-right {% if s.series_winner == s.team1 %}home-winner{% endif %}">
@@ -189,7 +189,7 @@
                     <div class="upcoming-card">
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                <div class="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">{{ m.league }}</div>
+                                <div class="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">{{ m.league_label or m.league }}</div>
                                 <div class="mt-1 text-sm font-semibold text-white">{{ m.team1 }} vs {{ m.team2 }}</div>
                                 <div class="mt-1 text-xs text-slate-500">{{ m.event_name }}</div>
                                 {% if m.phase_label %}
@@ -224,7 +224,7 @@
                 {% for l in active_leagues %}
                 <a href="/tournament/{{ l.league }}/{{ l.last_match.year if l.last_match else '' }}" class="league-card">
                     <div>
-                        <div class="font-semibold text-cyan-300">{{ l.league }}</div>
+                        <div class="font-semibold text-cyan-300">{{ l.league_label or l.league }}</div>
                         <div class="text-xs text-slate-500">{{ l.total_series }} series in the last 30 days</div>
                     </div>
                     <div class="text-xs font-mono text-slate-500">{{ l.last_match.strftime('%m-%d') if l.last_match else '' }}</div>

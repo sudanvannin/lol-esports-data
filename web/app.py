@@ -27,7 +27,7 @@ async def autocomplete(q: str = Query(""), mode: str = Query("players")):
         results = db.search_teams(q)
         return JSONResponse(
             [
-                {"label": r["teamname"], "sub": r["league"]}
+                {"label": r["teamname"], "sub": r.get("league_label", r["league"])}
                 for r in results.to_dict("records")
             ]
         )
@@ -35,7 +35,10 @@ async def autocomplete(q: str = Query(""), mode: str = Query("players")):
         results = db.search_players(q)
         return JSONResponse(
             [
-                {"label": r["playername"], "sub": f"{r['teamname']} ({r['position']})"}
+                {
+                    "label": r["playername"],
+                    "sub": f"{r['teamname']} ({r['position']}, {r.get('league_label', r['league'])})",
+                }
                 for r in results.to_dict("records")
             ]
         )

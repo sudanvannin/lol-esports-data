@@ -86,7 +86,7 @@
                 <td class="px-3 py-2">
                     <a href="/team/{{ r.teamname }}" class="text-gray-300 hover:underline">{{ r.teamname }}</a>
                 </td>
-                <td class="px-3 py-2 text-gray-400">{{ r.league }}</td>
+                <td class="px-3 py-2 text-gray-400">{{ r.league_label or r.league }}</td>
                 <td class="px-3 py-2 text-center">{{ r.games|int }}</td>
                 <td class="px-3 py-2 text-center {% if r.winrate > 55 %}text-green-400{% elif r.winrate < 45 %}text-red-400{% endif %}">{{ r.winrate }}%</td>
                 <td class="px-3 py-2 text-center font-bold bg-blue-900/10">{{ r.value }}</td>

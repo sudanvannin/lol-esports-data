@@ -28,7 +28,7 @@
             {% for sp in h2h_by_split %}
             {% set sp_key = sp.year|string ~ '-' ~ sp.league ~ '-' ~ sp.split ~ '-' ~ sp.playoffs|string %}
             <option value="{{ sp_key }}" {% if target_split == sp_key %}selected{% endif %}>
-                {{ sp.year }} {{ sp.league }} {{ '' if sp.split == 'N/A' else sp.split }} {{ '(' ~ sp.stage ~ ')' if sp.stage and sp.split != 'N/A' else '' }}
+                {{ sp.year }} {{ sp.league_label or sp.league }} {{ '' if sp.split == 'N/A' else sp.split }} {{ '(' ~ sp.stage ~ ')' if sp.stage and sp.split != 'N/A' else '' }}
             </option>
             {% endfor %}
         </select>
@@ -230,7 +230,7 @@
                 <tr class="hover:bg-slate-800/40">
                     <td class="px-4 py-2 text-slate-400">{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}</td>
                     <td class="px-4 py-2">
-                        <a href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}" class="text-cyan-300 hover:text-cyan-200">{{ s.league }}</a>
+                        <a href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}" class="text-cyan-300 hover:text-cyan-200">{{ s.league_label or s.league }}</a>
                     </td>
                     <td class="px-4 py-2 text-xs text-slate-500">{{ s.tournament_phase or '' }}</td>
                     <td class="px-4 py-2 text-right {{ 'font-semibold text-emerald-400' if s.series_winner == s.team1 else '' }}">{{ s.team1 }}</td>

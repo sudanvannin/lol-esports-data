@@ -6,7 +6,7 @@
     <div>
         <h1 class="text-3xl font-bold text-white">{{ info.teamname }}</h1>
         <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-400">
-            <span>{{ info.league }}</span>
+            <span>{{ info.league_label or info.league }}</span>
             {% if titles %}
             <span class="text-amber-300">{{ titles|length }} title{{ 's' if titles|length != 1 else '' }}</span>
             {% endif %}
@@ -130,7 +130,7 @@
                         <tr class="hover:bg-slate-800/40">
                             <td class="px-4 py-2 font-bold text-amber-300">{{ t.year|int }}</td>
                             <td class="px-4 py-2">
-                                <a href="/tournament/{{ t.league }}/{{ t.year|int }}" class="text-cyan-300 hover:text-cyan-200">{{ t.league }}</a>
+                                <a href="/tournament/{{ t.league }}/{{ t.year|int }}" class="text-cyan-300 hover:text-cyan-200">{{ t.league_label or t.league }}</a>
                             </td>
                             <td class="px-4 py-2 text-xs text-slate-500">{{ t.final_score }} vs {{ t.runner_up }}</td>
                         </tr>
@@ -162,7 +162,7 @@
                         {% for s in stats_by_split %}
                         <tr class="hover:bg-slate-800/40">
                             <td class="px-3 py-2 font-semibold">{{ s.year|int }}</td>
-                            <td class="px-3 py-2 text-slate-300">{{ s.league }}</td>
+                            <td class="px-3 py-2 text-slate-300">{{ s.league_label or s.league }}</td>
                             <td class="px-3 py-2 text-slate-400">{{ s.split or '' }}</td>
                             <td class="px-3 py-2 text-center text-slate-400">{{ s.games|int }}</td>
                             <td class="px-3 py-2 text-center font-mono">{{ s.wins|int }}-{{ (s.games - s.wins)|int }}</td>
@@ -200,7 +200,7 @@
                         <tr class="hover:bg-slate-800/40 {{ 'win' if won else 'loss' }}">
                             <td class="px-3 py-2 text-slate-400">{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}</td>
                             <td class="px-3 py-2">
-                                <a href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}" class="text-cyan-300 hover:text-cyan-200">{{ s.league }}</a>
+                                <a href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}" class="text-cyan-300 hover:text-cyan-200">{{ s.league_label or s.league }}</a>
                             </td>
                             <td class="px-3 py-2 flex items-center justify-between gap-2">
                                 <a href="/team/{{ opponent }}" class="hover:underline">{{ opponent }}</a>
