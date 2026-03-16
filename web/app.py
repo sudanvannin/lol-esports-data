@@ -56,10 +56,31 @@ async def series_games(
 async def home(request: Request):
     recent = db.get_recent_series(limit=25)
     leagues = db.get_active_leagues()
+    upcoming = db.get_upcoming_matches(limit=8)
+    upcoming_meta = db.get_upcoming_matches_meta()
     return templates.TemplateResponse("home.html", {
         "request": request,
         "recent_series": recent.to_dict("records"),
         "active_leagues": leagues.to_dict("records"),
+        "upcoming_matches": upcoming.to_dict("records"),
+        "upcoming_meta": upcoming_meta,
+    })
+
+
+@app.get("/upcoming", response_class=HTMLResponse)
+async def upcoming(
+    request: Request,
+    league: str = Query(None),
+):
+    upcoming_matches = db.get_upcoming_matches(limit=100, league=league)
+    upcoming_leagues = db.get_upcoming_match_leagues()
+    upcoming_meta = db.get_upcoming_matches_meta()
+    return templates.TemplateResponse("upcoming.html", {
+        "request": request,
+        "rows": upcoming_matches.to_dict("records"),
+        "league": league,
+        "available_leagues": upcoming_leagues.to_dict("records"),
+        "upcoming_meta": upcoming_meta,
     })
 
 
@@ -355,4 +376,3 @@ async def betting(
         "available_years": available_years,
         "available_splits": available_splits,
     })
-

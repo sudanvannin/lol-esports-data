@@ -5,10 +5,17 @@ from pathlib import Path
 import threading
 
 import duckdb
+import pandas as pd
+
+from src.upcoming_matches import load_upcoming_matches
 
 # ── Persistent connection with MotherDuck ──
 _lock = threading.Lock()
 _con = None
+_upcoming_cache_lock = threading.Lock()
+_upcoming_cache_df = None
+_upcoming_cache_meta = None
+_upcoming_cache_mtime = None
 
 def _get_persistent_con():
     """Return a persistent MotherDuck connection."""
@@ -67,6 +74,124 @@ def query_one(sql: str, params: dict | None = None):
     if len(df) == 0:
         return None
     return df.iloc[0].to_dict()
+
+
+def _load_local_upcoming_matches_cached():
+    """Load normalized upcoming matches from the local Leaguepedia payload with mtime caching."""
+    global _upcoming_cache_df, _upcoming_cache_meta, _upcoming_cache_mtime
+
+    upcoming_path = Path("data/bronze/leaguepedia/match_results.json")
+    try:
+        current_mtime = upcoming_path.stat().st_mtime if upcoming_path.exists() else None
+    except OSError:
+        current_mtime = None
+
+    if _upcoming_cache_df is not None and _upcoming_cache_mtime == current_mtime:
+        return _upcoming_cache_df.copy(), dict(_upcoming_cache_meta or {})
+
+    with _upcoming_cache_lock:
+        if _upcoming_cache_df is not None and _upcoming_cache_mtime == current_mtime:
+            return _upcoming_cache_df.copy(), dict(_upcoming_cache_meta or {})
+
+        upcoming_df, upcoming_meta = load_upcoming_matches(upcoming_path)
+        _upcoming_cache_df = upcoming_df
+        _upcoming_cache_meta = upcoming_meta
+        _upcoming_cache_mtime = current_mtime
+        return upcoming_df.copy(), dict(upcoming_meta)
+
+
+def get_upcoming_matches(limit: int = 20, league: str | None = None):
+    """Return normalized upcoming matches, preferring MotherDuck and falling back to local Leaguepedia bronze."""
+    safe_league = league.replace("'", "''") if league else None
+    con = _get_persistent_con()
+    where_clause = f"WHERE league = '{safe_league}'" if safe_league else ""
+
+    try:
+        remote_df = con.execute(
+            f"""
+            SELECT
+                match_id,
+                match_time,
+                match_date,
+                league,
+                event_name,
+                phase_label,
+                team1,
+                team2,
+                best_of,
+                patch,
+                overview_page,
+                source
+            FROM web_upcoming_matches
+            {where_clause}
+            ORDER BY match_time ASC, league, team1, team2
+            LIMIT {limit}
+            """
+        ).fetchdf()
+        if len(remote_df) > 0:
+            return remote_df
+    except duckdb.Error:
+        pass
+
+    local_df, _ = _load_local_upcoming_matches_cached()
+    if safe_league:
+        local_df = local_df.loc[local_df["league"] == safe_league].copy()
+    return local_df.sort_values(["match_time", "league", "team1", "team2"], kind="stable").head(limit).reset_index(drop=True)
+
+
+def get_upcoming_match_leagues():
+    """Return distinct leagues available in upcoming matches."""
+    con = _get_persistent_con()
+    try:
+        remote_df = con.execute(
+            """
+            SELECT league, COUNT(*) AS total_matches, MIN(match_time) AS next_match_time
+            FROM web_upcoming_matches
+            GROUP BY league
+            ORDER BY next_match_time ASC, league
+            """
+        ).fetchdf()
+        if len(remote_df) > 0:
+            return remote_df
+    except duckdb.Error:
+        pass
+
+    local_df, _ = _load_local_upcoming_matches_cached()
+    if local_df.empty:
+        return pd.DataFrame(columns=["league", "total_matches", "next_match_time"])
+    return (
+        local_df.groupby("league", as_index=False)
+        .agg(total_matches=("match_id", "count"), next_match_time=("match_time", "min"))
+        .sort_values(["next_match_time", "league"], kind="stable")
+        .reset_index(drop=True)
+    )
+
+
+def get_upcoming_matches_meta():
+    """Return metadata about the upcoming schedule source."""
+    con = _get_persistent_con()
+    try:
+        remote_meta = con.execute(
+            """
+            SELECT fetched_at, row_count, source_path
+            FROM web_upcoming_matches_meta
+            LIMIT 1
+            """
+        ).fetchdf()
+        if len(remote_meta) > 0:
+            row = remote_meta.iloc[0].to_dict()
+            row["source"] = "motherduck"
+            return row
+    except duckdb.Error:
+        pass
+
+    _, local_meta = _load_local_upcoming_matches_cached()
+    return {
+        "fetched_at": local_meta.get("fetched_at"),
+        "row_count": int(local_meta.get("row_count", 0)),
+        "source_path": local_meta.get("path"),
+        "source": "local_bronze",
+    }
 
 
 # =============================================================

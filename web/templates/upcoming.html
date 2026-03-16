@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}LoL Esports Stats - Upcoming Matches{% endblock %}
+{% block content %}
+
+<div class="flex flex-col gap-6">
+    <section class="rounded-2xl border border-gray-800 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 p-6">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <div class="text-xs uppercase tracking-[0.24em] text-blue-400">Schedule</div>
+                <h1 class="mt-2 text-3xl font-semibold text-gray-100">Upcoming Matches</h1>
+                <p class="mt-2 max-w-2xl text-sm text-gray-400">
+                    Future competitive League of Legends series from the latest Leaguepedia MatchSchedule snapshot.
+                </p>
+            </div>
+            <form method="get" action="/upcoming" class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <label class="text-xs text-gray-500">
+                    League
+                    <select name="league" class="mt-1 w-56 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-200 focus:border-blue-500 focus:outline-none">
+                        <option value="">All leagues</option>
+                        {% for option in available_leagues %}
+                        <option value="{{ option.league }}" {% if league == option.league %}selected{% endif %}>
+                            {{ option.league }} ({{ option.total_matches }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="flex gap-2">
+                    <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500">
+                        Filter
+                    </button>
+                    {% if league %}
+                    <a href="/upcoming" class="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">
+                        Reset
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+        {% if upcoming_meta %}
+        <div class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+            <span>Source: {{ upcoming_meta.source }}</span>
+            {% if upcoming_meta.fetched_at %}<span>Fetched at: {{ upcoming_meta.fetched_at }}</span>{% endif %}
+            {% if upcoming_meta.row_count is not none %}<span>Raw rows: {{ upcoming_meta.row_count }}</span>{% endif %}
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-800 text-xs uppercase tracking-wide text-gray-400">
+                <tr>
+                    <th class="px-4 py-3 text-left">Time (UTC)</th>
+                    <th class="px-4 py-3 text-left">League</th>
+                    <th class="px-4 py-3 text-left">Event</th>
+                    <th class="px-4 py-3 text-left">Phase</th>
+                    <th class="px-4 py-3 text-right">Team 1</th>
+                    <th class="px-4 py-3 text-center">Bo</th>
+                    <th class="px-4 py-3 text-left">Team 2</th>
+                    <th class="px-4 py-3 text-left">Patch</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800">
+                {% if rows %}
+                    {% for row in rows %}
+                    <tr class="hover:bg-gray-800/40">
+                        <td class="px-4 py-3 font-mono text-gray-300">
+                            {{ row.match_time.strftime('%Y-%m-%d %H:%M') if row.match_time else '' }}
+                        </td>
+                        <td class="px-4 py-3 text-blue-400">{{ row.league }}</td>
+                        <td class="px-4 py-3 text-gray-300">{{ row.event_name }}</td>
+                        <td class="px-4 py-3 text-xs text-gray-500">{{ row.phase_label or '-' }}</td>
+                        <td class="px-4 py-3 text-right text-gray-100">{{ row.team1 }}</td>
+                        <td class="px-4 py-3 text-center text-gray-500">{{ row.best_of if row.best_of else '?' }}</td>
+                        <td class="px-4 py-3 text-gray-100">{{ row.team2 }}</td>
+                        <td class="px-4 py-3 text-gray-500">{{ row.patch or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="px-4 py-8 text-center text-sm text-gray-500">
+                            No upcoming matches available for this filter.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </section>
+</div>
+
+{% endblock %}

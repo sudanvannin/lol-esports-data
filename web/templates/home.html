@@ -49,7 +49,44 @@
 
     <!-- Active Leagues -->
     <div>
-        <h2 class="text-lg font-semibold text-gray-200 mb-4">Active Leagues</h2>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-200">Upcoming Matches</h2>
+            <a href="/upcoming" class="text-xs text-blue-400 hover:text-blue-300">View all</a>
+        </div>
+        <div class="bg-gray-900 rounded-lg border border-gray-800 p-4 space-y-3">
+            {% if upcoming_matches %}
+                {% for m in upcoming_matches %}
+                <div class="rounded-lg border border-gray-800 bg-gray-950/50 p-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="text-xs uppercase tracking-wide text-blue-400">{{ m.league }}</div>
+                            <div class="text-sm font-semibold text-gray-100 mt-1">{{ m.team1 }} vs {{ m.team2 }}</div>
+                            <div class="text-xs text-gray-500 mt-1">{{ m.event_name }}</div>
+                            {% if m.phase_label %}
+                            <div class="text-xs text-gray-500">{{ m.phase_label }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-mono text-gray-200">{{ m.match_time.strftime('%m-%d %H:%M') if m.match_time else '' }} UTC</div>
+                            <div class="text-xs text-gray-500">Bo{{ m.best_of if m.best_of else '?' }}</div>
+                            {% if m.patch %}
+                            <div class="text-xs text-gray-500">Patch {{ m.patch }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-sm text-gray-500">No upcoming matches available.</p>
+            {% endif %}
+            {% if upcoming_meta and upcoming_meta.fetched_at %}
+            <div class="pt-2 text-[11px] text-gray-600">
+                Schedule updated at {{ upcoming_meta.fetched_at }}
+            </div>
+            {% endif %}
+        </div>
+
+        <h2 class="text-lg font-semibold text-gray-200 mt-8 mb-4">Active Leagues</h2>
         <div class="bg-gray-900 rounded-lg border border-gray-800 p-4 space-y-3">
             {% for l in active_leagues %}
             <a href="/tournament/{{ l.league }}/{{ l.last_match.year if l.last_match else '' }}"
