@@ -3,7 +3,7 @@
 {% block content %}
 
 <h1 class="mb-2 text-2xl font-bold">Compare</h1>
-<p class="mb-6 text-sm text-slate-500">Side-by-side comparison for teams and players.</p>
+<p class="mb-6 text-sm text-slate-500">Side-by-side team and player comparison with form, openings, and game profile context.</p>
 
 <div class="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
     <div class="flex gap-2">
@@ -13,7 +13,7 @@
         >Players</a>
         <a
             href="/compare?mode=teams{% if p1 %}&p1={{ p1 }}{% endif %}{% if p2 %}&p2={{ p2 }}{% endif %}"
-            class="rounded px-4 py-2 text-sm {{ 'bg-cyan-600 text-white' if mode == 'teams' else 'bg-slate-800 text-slate-400 hover:bg-slate-700' }}"
+            class="rounded px-4 py-2 text-sm {{ 'bg-amber-400 text-slate-950 font-semibold' if mode == 'teams' else 'bg-slate-800 text-slate-400 hover:bg-slate-700' }}"
         >Teams</a>
     </div>
 
@@ -22,7 +22,7 @@
         <span class="text-xs uppercase tracking-wider text-slate-500">H2H Split:</span>
         <select
             onchange="window.location.href='/compare?mode=teams&p1={{ p1 }}&p2={{ p2 }}&split=' + this.value"
-            class="rounded border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-300 outline-none focus:border-cyan-500"
+            class="rounded border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-300 outline-none focus:border-amber-400"
         >
             <option value="all" {% if target_split == 'all' %}selected{% endif %}>All Matches</option>
             {% for sp in h2h_by_split %}
@@ -48,7 +48,7 @@
             value="{{ p1 }}"
             data-autocomplete="{{ mode }}"
             placeholder="{{ 'Team 1 (e.g. T1)' if mode == 'teams' else 'Player 1 (e.g. Faker)' }}"
-            class="w-48 rounded border border-slate-700 bg-slate-800 px-4 py-2 text-slate-200 focus:border-cyan-500 focus:outline-none"
+            class="w-48 rounded border border-slate-700 bg-slate-800 px-4 py-2 text-slate-200 focus:border-amber-400 focus:outline-none"
         >
     </span>
     <span class="text-xl font-bold text-slate-500">vs</span>
@@ -59,23 +59,21 @@
             value="{{ p2 }}"
             data-autocomplete="{{ mode }}"
             placeholder="{{ 'Team 2 (e.g. Gen.G)' if mode == 'teams' else 'Player 2 (e.g. Chovy)' }}"
-            class="w-48 rounded border border-slate-700 bg-slate-800 px-4 py-2 text-slate-200 focus:border-cyan-500 focus:outline-none"
+            class="w-48 rounded border border-slate-700 bg-slate-800 px-4 py-2 text-slate-200 focus:border-amber-400 focus:outline-none"
         >
     </span>
-    <button type="submit" class="rounded bg-cyan-600 px-6 py-2 font-semibold text-white hover:bg-cyan-500">Compare</button>
+    <button type="submit" class="rounded bg-amber-400 px-6 py-2 font-semibold text-slate-950 hover:bg-amber-300">Compare</button>
 </form>
 
 {% if mode == 'teams' %}
-    {% if comparison and comparison|length == 2 %}
-    {% set c1 = comparison[0] %}
-    {% set c2 = comparison[1] %}
+    {% if comparison and comparison|length == 2 and gen1 and gen2 %}
     {% set t1 = name1 %}
     {% set t2 = name2 %}
 
     <div class="mb-6 grid grid-cols-2 gap-4">
         {% for form, tname in [(form1, t1), (form2, t2)] %}
         <div class="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-3">
-            <a href="/team/{{ tname }}" class="mr-2 font-bold text-white hover:text-cyan-300">{{ tname }}</a>
+            <a href="/team/{{ tname }}" class="mr-2 font-bold text-white hover:text-amber-300">{{ tname }}</a>
             <span class="text-xs text-slate-500">Last {{ form|length }}:</span>
             {% for g in form %}
             <span
@@ -106,7 +104,7 @@
     </div>
     {% endif %}
 
-    {% macro team_row(label, v1, v2, higher_is_better=true, suffix='') %}
+    {% macro compare_row(label, v1, v2, higher_is_better=true, suffix='') %}
     {% set left = v1|float %}
     {% set right = v2|float %}
     {% set total = left + right %}
@@ -126,27 +124,90 @@
     </div>
     {% endmacro %}
 
-    <div class="mb-6 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-        <div class="grid grid-cols-3 bg-slate-800 px-4 py-3 text-xs uppercase text-slate-400">
-            <div class="text-right font-semibold text-cyan-300">{{ t1 }} <span class="font-normal text-slate-600">({{ c1.games }} games)</span></div>
-            <div class="text-center">Team Snapshot</div>
-            <div class="text-left font-semibold text-indigo-300"><span class="font-normal text-slate-600">({{ c2.games }} games)</span> {{ t2 }}</div>
+    <div class="mb-6">
+        <div class="mb-4 flex flex-wrap items-center gap-3">
+            <div>
+                <h2 class="text-base font-semibold text-slate-200">Team Trends</h2>
+                <p class="mt-1 text-sm text-slate-500">Compare openings, pace, and high-event thresholds from each team's game profile.</p>
+            </div>
+            <div class="ml-auto flex overflow-hidden rounded-full border border-slate-700 bg-slate-900">
+                <button id="btnOverall" onclick="showStats('overall')" class="bg-amber-400 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-950">Overall</button>
+                <button id="btnH2H" onclick="showStats('h2h')" class="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Head-to-Head</button>
+            </div>
         </div>
 
-        <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-cyan-300">Results and tempo</div>
-        {{ team_row('Win Rate', c1.winrate, c2.winrate, suffix='%') }}
-        {{ team_row('Avg Length', (c1.avg_length / 60)|round(1), (c2.avg_length / 60)|round(1), higher_is_better=false, suffix='m') }}
+        <div id="statsOverall" class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+            <div class="grid grid-cols-3 bg-slate-800 px-4 py-3 text-xs uppercase text-slate-400">
+                <div class="text-right font-semibold text-cyan-300">{{ t1 }} <span class="font-normal text-slate-600">({{ gen1.games }} games)</span></div>
+                <div class="text-center">Overall Profile</div>
+                <div class="text-left font-semibold text-indigo-300"><span class="font-normal text-slate-600">({{ gen2.games }} games)</span> {{ t2 }}</div>
+            </div>
 
-        <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-indigo-300">Per-game profile</div>
-        {{ team_row('Avg Kills', c1.avg_kills, c2.avg_kills) }}
-        {{ team_row('Avg Deaths', c1.avg_deaths, c2.avg_deaths, higher_is_better=false) }}
-        {{ team_row('Avg Towers', c1.avg_towers, c2.avg_towers) }}
-        {{ team_row('Avg Dragons', c1.avg_dragons, c2.avg_dragons) }}
-        {{ team_row('Avg Barons', c1.avg_barons, c2.avg_barons) }}
+            <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-amber-300">Results and openings</div>
+            {{ compare_row('Win Rate', gen1.winrate, gen2.winrate, suffix='%') }}
+            {{ compare_row('First Blood', gen1.first_blood_pct, gen2.first_blood_pct, suffix='%') }}
+            {{ compare_row('First Tower', gen1.first_tower_pct, gen2.first_tower_pct, suffix='%') }}
+            {{ compare_row('First Dragon', gen1.first_dragon_pct, gen2.first_dragon_pct, suffix='%') }}
+            {{ compare_row('First Herald', gen1.first_herald_pct, gen2.first_herald_pct, suffix='%') }}
+            {{ compare_row('First Baron', gen1.first_baron_pct, gen2.first_baron_pct, suffix='%') }}
 
-        <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-amber-300">Openings</div>
-        {{ team_row('First Blood', c1.fb_pct, c2.fb_pct, suffix='%') }}
-        {{ team_row('First Tower', c1.ft_pct, c2.ft_pct, suffix='%') }}
+            <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-cyan-300">Game profile</div>
+            {{ compare_row('Avg Total Kills', gen1.avg_total_kills, gen2.avg_total_kills) }}
+            {{ compare_row('Avg Towers', gen1.avg_total_towers, gen2.avg_total_towers) }}
+            {{ compare_row('Avg Dragons', gen1.avg_total_dragons, gen2.avg_total_dragons) }}
+            {{ compare_row('Avg Barons', gen1.avg_total_nashors, gen2.avg_total_nashors) }}
+            {{ compare_row('Avg Inhibitors', gen1.avg_total_inhibitors, gen2.avg_total_inhibitors) }}
+            {{ compare_row('Avg Game Time', gen1.avg_game_minutes, gen2.avg_game_minutes, higher_is_better=false, suffix='m') }}
+
+            <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-violet-300">Thresholds</div>
+            {{ compare_row('25+ Kill Games', gen1.kills_over_25_pct, gen2.kills_over_25_pct, suffix='%') }}
+            {{ compare_row('11+ Tower Games', gen1.towers_over_10_pct, gen2.towers_over_10_pct, suffix='%') }}
+            {{ compare_row('2+ Baron Games', gen1.nashors_over_1_5_pct, gen2.nashors_over_1_5_pct, suffix='%') }}
+        </div>
+
+        <div id="statsH2H" class="hidden overflow-hidden rounded-2xl border border-amber-300/20 bg-slate-900">
+            <div class="grid grid-cols-3 bg-slate-800 px-4 py-3 text-xs uppercase text-slate-400">
+                <div class="text-right font-semibold text-cyan-300">{{ t1 }} <span class="font-normal text-slate-600">({{ bet1.games if bet1 and bet1.games else 0 }} games)</span></div>
+                <div class="text-center">Shared Match Profile</div>
+                <div class="text-left font-semibold text-indigo-300"><span class="font-normal text-slate-600">({{ bet2.games if bet2 and bet2.games else 0 }} games)</span> {{ t2 }}</div>
+            </div>
+
+            {% if bet1 and bet2 and bet1.games and bet2.games %}
+            <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-amber-300">Head-to-head tendencies</div>
+            {{ compare_row('Win Rate', bet1.winrate, bet2.winrate, suffix='%') }}
+            {{ compare_row('First Blood', bet1.first_blood_pct, bet2.first_blood_pct, suffix='%') }}
+            {{ compare_row('First Tower', bet1.first_tower_pct, bet2.first_tower_pct, suffix='%') }}
+            {{ compare_row('First Dragon', bet1.first_dragon_pct, bet2.first_dragon_pct, suffix='%') }}
+            {{ compare_row('First Herald', bet1.first_herald_pct, bet2.first_herald_pct, suffix='%') }}
+            {{ compare_row('First Baron', bet1.first_baron_pct, bet2.first_baron_pct, suffix='%') }}
+
+            <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-cyan-300">Shared game profile</div>
+            {{ compare_row('Avg Total Kills', bet1.avg_total_kills, bet2.avg_total_kills) }}
+            {{ compare_row('Avg Towers', bet1.avg_total_towers, bet2.avg_total_towers) }}
+            {{ compare_row('Avg Dragons', bet1.avg_total_dragons, bet2.avg_total_dragons) }}
+            {{ compare_row('Avg Barons', bet1.avg_total_nashors, bet2.avg_total_nashors) }}
+            {{ compare_row('Avg Inhibitors', bet1.avg_total_inhibitors, bet2.avg_total_inhibitors) }}
+            {{ compare_row('Avg Game Time', bet1.avg_game_minutes, bet2.avg_game_minutes, higher_is_better=false, suffix='m') }}
+
+            <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-violet-300">Shared thresholds</div>
+            {{ compare_row('25+ Kill Games', bet1.kills_over_25_pct, bet2.kills_over_25_pct, suffix='%') }}
+            {{ compare_row('11+ Tower Games', bet1.towers_over_10_pct, bet2.towers_over_10_pct, suffix='%') }}
+            {{ compare_row('2+ Baron Games', bet1.nashors_over_1_5_pct, bet2.nashors_over_1_5_pct, suffix='%') }}
+            {% else %}
+            <div class="p-8 text-center text-slate-500">No shared games found for this head-to-head slice.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <h3 class="mb-4 text-center text-sm font-semibold text-slate-300">Openings Radar</h3>
+            <canvas id="radarChart" height="260"></canvas>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <h3 class="mb-4 text-center text-sm font-semibold text-slate-300">High-Event Thresholds</h3>
+            <canvas id="thresholdChart" height="260"></canvas>
+        </div>
     </div>
 
     {% if h2h_series %}
@@ -188,12 +249,114 @@
     </div>
     {% endif %}
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        function showStats(mode) {
+            const overall = document.getElementById('statsOverall');
+            const h2h = document.getElementById('statsH2H');
+            const btnOverall = document.getElementById('btnOverall');
+            const btnH2H = document.getElementById('btnH2H');
+
+            if (mode === 'h2h') {
+                overall.classList.add('hidden');
+                h2h.classList.remove('hidden');
+                btnH2H.classList.add('bg-amber-400', 'text-slate-950');
+                btnH2H.classList.remove('text-slate-400');
+                btnOverall.classList.remove('bg-amber-400', 'text-slate-950');
+                btnOverall.classList.add('text-slate-400');
+            } else {
+                h2h.classList.add('hidden');
+                overall.classList.remove('hidden');
+                btnOverall.classList.add('bg-amber-400', 'text-slate-950');
+                btnOverall.classList.remove('text-slate-400');
+                btnH2H.classList.remove('bg-amber-400', 'text-slate-950');
+                btnH2H.classList.add('text-slate-400');
+            }
+        }
+
+        const t1 = {{ t1 | tojson }};
+        const t2 = {{ t2 | tojson }};
+
+        new Chart(document.getElementById('radarChart'), {
+            type: 'radar',
+            data: {
+                labels: ['Win Rate', 'First Blood', 'First Tower', 'First Dragon', 'First Herald', 'First Baron'],
+                datasets: [{
+                    label: t1,
+                    data: [{{ gen1.winrate }}, {{ gen1.first_blood_pct }}, {{ gen1.first_tower_pct }}, {{ gen1.first_dragon_pct }}, {{ gen1.first_herald_pct }}, {{ gen1.first_baron_pct }}],
+                    borderColor: '#67e8f9',
+                    backgroundColor: 'rgba(103, 232, 249, 0.14)',
+                    pointBackgroundColor: '#67e8f9',
+                    borderWidth: 2,
+                }, {
+                    label: t2,
+                    data: [{{ gen2.winrate }}, {{ gen2.first_blood_pct }}, {{ gen2.first_tower_pct }}, {{ gen2.first_dragon_pct }}, {{ gen2.first_herald_pct }}, {{ gen2.first_baron_pct }}],
+                    borderColor: '#a78bfa',
+                    backgroundColor: 'rgba(167, 139, 250, 0.14)',
+                    pointBackgroundColor: '#a78bfa',
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                plugins: { legend: { labels: { color: '#d1d5db', font: { size: 11 } } } },
+                scales: {
+                    r: {
+                        min: 0,
+                        max: 100,
+                        ticks: { color: '#6b7280', backdropColor: 'transparent', stepSize: 25 },
+                        grid: { color: '#1f2937' },
+                        pointLabels: { color: '#9ca3af', font: { size: 11 } },
+                        angleLines: { color: '#1f2937' }
+                    }
+                }
+            }
+        });
+
+        new Chart(document.getElementById('thresholdChart'), {
+            type: 'bar',
+            data: {
+                labels: ['25+ Kill Games', '11+ Tower Games', '2+ Baron Games'],
+                datasets: [{
+                    label: t1,
+                    data: [{{ gen1.kills_over_25_pct }}, {{ gen1.towers_over_10_pct }}, {{ gen1.nashors_over_1_5_pct }}],
+                    backgroundColor: 'rgba(103, 232, 249, 0.6)',
+                    borderColor: '#67e8f9',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                }, {
+                    label: t2,
+                    data: [{{ gen2.kills_over_25_pct }}, {{ gen2.towers_over_10_pct }}, {{ gen2.nashors_over_1_5_pct }}],
+                    backgroundColor: 'rgba(167, 139, 250, 0.6)',
+                    borderColor: '#a78bfa',
+                    borderWidth: 1.5,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { labels: { color: '#d1d5db', font: { size: 11 } } } },
+                scales: {
+                    x: {
+                        max: 100,
+                        ticks: { color: '#6b7280', callback: value => value + '%' },
+                        grid: { color: '#1f2937' }
+                    },
+                    y: {
+                        ticks: { color: '#9ca3af' },
+                        grid: { color: '#1f2937' }
+                    }
+                }
+            }
+        });
+    </script>
+
     {% elif p1 and p2 %}
     <p class="text-slate-500">Could not find both teams. Try partial names like "T1" or "Gen.G".</p>
     {% else %}
     <div class="py-20 text-center text-slate-600">
         <div class="mb-4 text-5xl">VS</div>
-        <p class="text-lg">Enter two teams above to compare their performance side by side.</p>
+        <p class="text-lg">Enter two teams above to compare form, openings, and match patterns.</p>
     </div>
     {% endif %}
 

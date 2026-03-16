@@ -40,6 +40,50 @@
 </div>
 {% endif %}
 
+{% if betting and betting.games %}
+<section class="mb-8">
+    <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <h2 class="text-base font-semibold text-slate-200">Game Profile</h2>
+            <p class="mt-1 text-sm text-slate-500">Objective control, pace, and high-event match patterns for {{ info.teamname }}.</p>
+        </div>
+        <span class="rounded-full border border-slate-800 bg-slate-900 px-3 py-1 text-xs uppercase tracking-wider text-slate-500">
+            {{ betting.games|int }} games tracked
+        </span>
+    </div>
+
+    {% macro profile_card(label, value, suffix='', tone='text-slate-200', note='') %}
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="text-xs uppercase tracking-wider text-slate-500">{{ label }}</div>
+        <div class="mt-2 text-2xl font-semibold {{ tone }}">{{ value }}{{ suffix }}</div>
+        {% if note %}
+        <div class="mt-1 text-xs text-slate-500">{{ note }}</div>
+        {% endif %}
+    </div>
+    {% endmacro %}
+
+    <div class="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {{ profile_card('Win Rate', betting.winrate, '%', 'text-emerald-400' if betting.winrate >= 50 else 'text-rose-400') }}
+        {{ profile_card('First Blood', betting.first_blood_pct, '%', 'text-amber-300', 'Opening control') }}
+        {{ profile_card('First Tower', betting.first_tower_pct, '%', 'text-amber-300', 'Objective opener') }}
+        {{ profile_card('First Dragon', betting.first_dragon_pct, '%', 'text-amber-300', 'Early neutral setup') }}
+        {{ profile_card('First Herald', betting.first_herald_pct, '%', 'text-amber-300', 'Herald priority') }}
+        {{ profile_card('First Baron', betting.first_baron_pct, '%', 'text-amber-300', 'Late-map control') }}
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+        {{ profile_card('Avg Total Kills', betting.avg_total_kills, '', 'text-cyan-300', 'Both teams combined') }}
+        {{ profile_card('Avg Towers', betting.avg_total_towers, '', 'text-cyan-300', 'Both teams combined') }}
+        {{ profile_card('Avg Dragons', betting.avg_total_dragons, '', 'text-cyan-300', 'Both teams combined') }}
+        {{ profile_card('Avg Barons', betting.avg_total_nashors, '', 'text-cyan-300', 'Both teams combined') }}
+        {{ profile_card('Avg Time', betting.avg_game_minutes, 'm', 'text-cyan-300', 'Average game length') }}
+        {{ profile_card('25+ Kill Games', betting.kills_over_25_pct, '%', 'text-violet-300', 'High-action threshold') }}
+        {{ profile_card('11+ Tower Games', betting.towers_over_10_pct, '%', 'text-violet-300', 'High-structure games') }}
+        {{ profile_card('2+ Baron Games', betting.nashors_over_1_5_pct, '%', 'text-violet-300', 'Extended late games') }}
+    </div>
+</section>
+{% endif %}
+
 <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
     <div class="space-y-6">
         <section>

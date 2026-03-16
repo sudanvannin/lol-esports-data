@@ -167,6 +167,7 @@ async def team(request: Request, name: str):
     stats = db.get_team_stats_by_split(actual_name)
     titles = db.get_team_titles(actual_name)
     recent = db.get_team_recent_series(actual_name)
+    betting = db.get_team_betting_stats(actual_name)
     wr_by_split = db.get_team_winrate_by_split(actual_name)
     form = db.get_team_form(actual_name, limit=10)
     return templates.TemplateResponse(
@@ -178,6 +179,7 @@ async def team(request: Request, name: str):
             "stats_by_split": stats.to_dict("records"),
             "titles": titles.to_dict("records"),
             "recent_series": recent.to_dict("records"),
+            "betting": betting,
             "wr_by_split": wr_by_split.to_dict("records"),
             "form": form.to_dict("records"),
         },
@@ -265,6 +267,10 @@ async def compare(
                     "h2h": None,
                     "h2h_series": None,
                     "h2h_summary": None,
+                    "gen1": None,
+                    "gen2": None,
+                    "bet1": None,
+                    "bet2": None,
                     "form1": [],
                     "form2": [],
                     "target_split": split,
@@ -313,6 +319,24 @@ async def compare(
         # resolve exact names from comparison rows
         name1 = rows[0]["teamname"] if rows else p1
         name2 = rows[1]["teamname"] if len(rows) > 1 else p2
+        gen1 = db.get_team_betting_stats(name1)
+        gen2 = db.get_team_betting_stats(name2)
+        bet1 = db.get_team_betting_stats(
+            name1,
+            year=target_year,
+            split=target_split_name,
+            playoffs=target_playoffs,
+            league=target_league,
+            h2h_opponent=name2,
+        )
+        bet2 = db.get_team_betting_stats(
+            name2,
+            year=target_year,
+            split=target_split_name,
+            playoffs=target_playoffs,
+            league=target_league,
+            h2h_opponent=name1,
+        )
         form1 = db.get_team_form(name1, limit=10).to_dict("records")
         form2 = db.get_team_form(name2, limit=10).to_dict("records")
         h2h_by_split = db.get_team_h2h_by_split(name1, name2)
@@ -327,6 +351,10 @@ async def compare(
                 "h2h": None,
                 "h2h_series": h2h_series.to_dict("records"),
                 "h2h_summary": h2h_summary,
+                "gen1": gen1,
+                "gen2": gen2,
+                "bet1": bet1,
+                "bet2": bet2,
                 "form1": form1,
                 "form2": form2,
                 "name1": name1,
@@ -409,11 +437,12 @@ async def rankings(
     )
 
 
-# ----- BETTING -----
+# ----- TEAM TRENDS -----
 
 
-@app.get("/betting", response_class=HTMLResponse)
-async def betting(
+@app.get("/team-trends", response_class=HTMLResponse)
+@app.get("/betting", response_class=HTMLResponse, include_in_schema=False)
+async def team_trends(
     request: Request,
     league: str = Query(None),
     year: str = Query(None),
@@ -421,4 +450,31 @@ async def betting(
     playoffs: str = Query(None),
     team: str = Query(""),
 ):
-    return RedirectResponse("/rankings", status_code=302)
+    year_int = int(year) if year else None
+    playoffs_int = int(playoffs) if playoffs and playoffs.strip() != "" else None
+    league = league or None
+    split = split or None
+
+    data = db.get_betting_stats(
+        team=team or None,
+        league=league,
+        year=year_int,
+        split=split,
+        playoffs=playoffs_int,
+    )
+    available_leagues, available_years, available_splits = db.get_betting_filters()
+    return templates.TemplateResponse(
+        "betting.html",
+        {
+            "request": request,
+            "rows": data.to_dict("records"),
+            "league": league,
+            "year": year_int,
+            "split": split,
+            "playoffs": playoffs_int,
+            "team": team,
+            "available_leagues": available_leagues,
+            "available_years": available_years,
+            "available_splits": available_splits,
+        },
+    )
