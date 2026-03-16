@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir \
     fastapi \
     uvicorn \
     jinja2 \
-    duckdb \
+    duckdb==1.4.4 \
     pandas
 
 # Copy application code

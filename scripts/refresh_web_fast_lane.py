@@ -22,6 +22,7 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+SUPPORTED_MOTHERDUCK_DUCKDB_VERSION = "1.4.4"
 
 
 def _upload_dataframe(
@@ -42,6 +43,13 @@ def upload_fast_web_tables(
     metadata: dict,
 ) -> None:
     """Upload fast-lane web tables to MotherDuck."""
+    installed_duckdb_version = getattr(duckdb, "__version__", "unknown")
+    if installed_duckdb_version != SUPPORTED_MOTHERDUCK_DUCKDB_VERSION:
+        raise RuntimeError(
+            "MotherDuck fast-lane refresh requires duckdb=="
+            f"{SUPPORTED_MOTHERDUCK_DUCKDB_VERSION}, got {installed_duckdb_version}."
+        )
+
     con = duckdb.connect(f"md:?motherduck_token={token}")
     try:
         con.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")

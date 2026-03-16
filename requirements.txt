@@ -42,5 +42,5 @@ pre-commit==3.6.0
 # Web & Database Serverless
 fastapi>=0.110.0
 uvicorn>=0.27.1
-duckdb>=0.10.0
+duckdb==1.4.4
 jinja2>=3.1.3
