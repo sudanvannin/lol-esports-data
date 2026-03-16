@@ -14,9 +14,11 @@ RUN pip install --no-cache-dir \
 
 # Copy application code
 COPY web/ ./web/
+COPY src/ ./src/
 
 # Set env variables
 ENV PORT=10000
+ENV PYTHONPATH=/app
 
 # Expose port (Render automatically uses $PORT, default is 10000)
 EXPOSE 10000
