@@ -1,10 +1,14 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-gray-950 text-gray-100">
+<html lang="en" class="bg-slate-950 text-slate-100">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LoL Esports Stats{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/style.css">
     <style>
         .stat-positive { color: #4ade80; }
         .stat-negative { color: #f87171; }
@@ -12,40 +16,52 @@
         .loss { background-color: rgba(239, 68, 68, 0.1); }
     </style>
 </head>
-<body class="min-h-screen">
-    <nav class="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="/" class="text-xl font-bold text-blue-400 hover:text-blue-300">LoL Esports Stats</a>
-            <div class="flex items-center gap-6">
-                <a href="/upcoming" class="text-sm text-gray-300 hover:text-white">Upcoming</a>
-                <a href="/tournaments" class="text-sm text-gray-300 hover:text-white">Tournaments</a>
-                <a href="/rankings" class="text-sm text-gray-300 hover:text-white">Rankings</a>
-                <a href="/compare" class="text-sm text-gray-300 hover:text-white">Compare</a>
-                <a href="/betting" class="text-sm text-yellow-400 hover:text-yellow-300 font-medium">⚡ Betting</a>
-                <form action="/search" method="get" class="flex">
-                    <span class="relative">
-                        <input type="text" name="q" placeholder="Search player or team..."
-                               data-autocomplete="players"
-                               class="bg-gray-800 text-sm text-gray-200 px-3 py-1.5 rounded-l border border-gray-700 focus:outline-none focus:border-blue-500 w-48">
-                    </span>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-sm px-3 py-1.5 rounded-r">Go</button>
-                </form>
+<body class="site-body min-h-screen">
+    <div class="site-backdrop" aria-hidden="true"></div>
+    <nav class="site-nav sticky top-0 z-50">
+        <div class="site-shell">
+            <div class="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+                <a href="/" class="site-brand">
+                    <span class="site-brand-kicker">LoL Esports Data</span>
+                    <span class="site-brand-title">Control Room</span>
+                </a>
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
+                    <div class="flex flex-wrap items-center gap-3 text-sm">
+                        <a href="/upcoming" class="site-nav-link">Upcoming</a>
+                        <a href="/tournaments" class="site-nav-link">Tournaments</a>
+                        <a href="/rankings" class="site-nav-link">Rankings</a>
+                        <a href="/compare" class="site-nav-link">Compare</a>
+                        <a href="/betting" class="site-nav-link site-nav-link-accent">Betting Lab</a>
+                    </div>
+                    <form action="/search" method="get" class="flex w-full max-w-sm">
+                        <span class="relative flex-1">
+                            <input
+                                type="text"
+                                name="q"
+                                placeholder="Search player or team..."
+                                data-autocomplete="players"
+                                class="site-search-input"
+                            >
+                        </span>
+                        <button type="submit" class="site-search-button">Search</button>
+                    </form>
+                </div>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-4 py-6">
+    <main class="site-shell py-8">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="border-t border-gray-800 mt-12 py-6 text-center text-gray-500 text-xs">
-        Data from Oracle's Elixir & Riot Games API
+    <footer class="site-shell mt-12 py-8 text-center text-xs text-slate-500">
+        Data from Oracle's Elixir, Riot APIs and Leaguepedia reconciliation.
     </footer>
 
     <script>
     function setupAutocomplete(inputEl, mode) {
         let dropdown = document.createElement('div');
-        dropdown.className = 'absolute z-50 bg-gray-800 border border-gray-700 rounded-b shadow-lg w-full max-h-60 overflow-y-auto hidden';
+        dropdown.className = 'absolute z-50 bg-slate-900 border border-slate-700 rounded-b shadow-lg w-full max-h-60 overflow-y-auto hidden';
         inputEl.parentElement.style.position = 'relative';
         inputEl.parentElement.appendChild(dropdown);
 
@@ -61,9 +77,9 @@
                     .then(items => {
                         if (items.length === 0) { dropdown.classList.add('hidden'); return; }
                         dropdown.innerHTML = items.map(it =>
-                            `<div class="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm" data-val="${it.label}">
-                                <span class="text-gray-100">${it.label}</span>
-                                <span class="text-gray-500 text-xs ml-2">${it.sub}</span>
+                            `<div class="px-3 py-2 hover:bg-slate-800 cursor-pointer text-sm" data-val="${it.label}">
+                                <span class="text-slate-100">${it.label}</span>
+                                <span class="text-slate-500 text-xs ml-2">${it.sub}</span>
                             </div>`
                         ).join('');
                         dropdown.classList.remove('hidden');
@@ -72,7 +88,6 @@
                                 e.preventDefault();
                                 inputEl.value = this.dataset.val;
                                 dropdown.classList.add('hidden');
-                                // Auto-submit the parent form
                                 const form = inputEl.closest('form');
                                 if (form) form.submit();
                             });
@@ -91,7 +106,6 @@
         setupAutocomplete(el, el.dataset.autocomplete);
     });
 
-    // Expandable series rows
     function toggleSeries(btn, team1, team2, date) {
         const row = btn.closest('tr');
         const existingDetail = row.nextElementSibling;
@@ -111,7 +125,7 @@
                 detailRow.className = 'series-detail';
                 const td = document.createElement('td');
                 td.colSpan = 99;
-                td.className = 'px-2 py-3 bg-gray-950';
+                td.className = 'px-2 py-3 bg-slate-950';
                 td.innerHTML = renderSeriesGames(games);
                 detailRow.appendChild(td);
                 row.after(detailRow);
@@ -124,51 +138,49 @@
             const mins = Math.floor((g.length||0) / 60);
             const secs = String(Math.floor((g.length||0) % 60)).padStart(2, '0');
             const t1 = g.team1, t2 = g.team2;
-            const t1c = t1.win ? 'text-green-400' : 'text-red-400';
-            const t2c = t2.win ? 'text-green-400' : 'text-red-400';
+            const t1c = t1.win ? 'text-emerald-400' : 'text-rose-400';
+            const t2c = t2.win ? 'text-emerald-400' : 'text-rose-400';
 
-            let html = `<div class="mb-4 bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">`;
-            html += `<div class="flex items-center justify-between px-4 py-2 bg-gray-800/50 text-xs">`;
+            let html = `<div class="mb-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80">`;
+            html += `<div class="flex items-center justify-between px-4 py-2 bg-slate-800/60 text-xs">`;
             html += `<span class="font-semibold">Game ${g.game || '?'}</span>`;
-            html += `<span class="text-gray-500">${mins}:${secs}</span>`;
+            html += `<span class="text-slate-500">${mins}:${secs}</span>`;
             html += `<span><span class="${t1c} font-semibold">${t1.name}</span> ${t1.kills||0} - ${t2.kills||0} <span class="${t2c} font-semibold">${t2.name}</span></span>`;
             html += `</div>`;
 
-            // Draft
             html += `<div class="grid grid-cols-2 gap-2 px-4 py-2 text-xs">`;
             [t1, t2].forEach(t => {
-                const wc = t.win ? 'border-green-800/40' : 'border-red-800/40';
+                const wc = t.win ? 'border-emerald-800/40' : 'border-rose-800/40';
                 html += `<div class="border-l-2 ${wc} pl-2">`;
-                html += `<div class="text-gray-500 uppercase mb-1">${t.name} (${t.side}) ${t.win ? '- WIN' : '- LOSS'}</div>`;
-                html += `<div class="flex gap-1 mb-1 flex-wrap">`;
-                (t.picks||[]).forEach(p => { html += `<span class="bg-gray-800 px-1.5 py-0.5 rounded">${p}</span>`; });
+                html += `<div class="mb-1 text-slate-500 uppercase">${t.name} (${t.side}) ${t.win ? '- WIN' : '- LOSS'}</div>`;
+                html += `<div class="mb-1 flex flex-wrap gap-1">`;
+                (t.picks||[]).forEach(p => { html += `<span class="rounded bg-slate-800 px-1.5 py-0.5">${p}</span>`; });
                 html += `</div>`;
-                html += `<div class="flex gap-1 flex-wrap text-gray-500">Bans: `;
-                (t.bans||[]).forEach(b => { html += `<span class="text-red-400/60">${b}</span> `; });
+                html += `<div class="flex flex-wrap gap-1 text-slate-500">Bans: `;
+                (t.bans||[]).forEach(b => { html += `<span class="text-rose-400/60">${b}</span> `; });
                 html += `</div></div>`;
             });
             html += `</div>`;
 
-            // Player stats
-            html += `<table class="w-full text-xs"><thead class="bg-gray-800/30 text-gray-500">`;
-            html += `<tr><th class="px-2 py-1 text-center w-8">Pos</th><th class="px-2 py-1 text-left">Player</th><th class="px-2 py-1 text-left">Champ</th><th class="px-2 py-1 text-center">KDA</th><th class="px-2 py-1 text-center">DPM</th><th class="px-2 py-1 text-center">CS/m</th><th class="px-2 py-1 text-center">Gold</th><th class="px-2 py-1 text-center">Vis</th><th class="px-2 py-1 text-center">GD@15</th></tr>`;
+            html += `<table class="w-full text-xs"><thead class="bg-slate-800/30 text-slate-500">`;
+            html += `<tr><th class="w-8 px-2 py-1 text-center">Pos</th><th class="px-2 py-1 text-left">Player</th><th class="px-2 py-1 text-left">Champ</th><th class="px-2 py-1 text-center">KDA</th><th class="px-2 py-1 text-center">DPM</th><th class="px-2 py-1 text-center">CS/m</th><th class="px-2 py-1 text-center">Gold</th><th class="px-2 py-1 text-center">Vis</th><th class="px-2 py-1 text-center">GD@15</th></tr>`;
             html += `</thead><tbody>`;
 
             [t1, t2].forEach(t => {
                 (t.players||[]).forEach((p, i) => {
-                    const rc = p.win ? 'bg-green-900/5' : 'bg-red-900/5';
-                    const border = i === 0 ? (t.win ? 'border-t border-green-800/30' : 'border-t border-red-800/30') : '';
-                    const gd = p.gd15 > 0 ? 'text-green-400' : (p.gd15 < 0 ? 'text-red-400' : 'text-gray-400');
+                    const rc = p.win ? 'bg-emerald-900/5' : 'bg-rose-900/5';
+                    const border = i === 0 ? (t.win ? 'border-t border-emerald-800/30' : 'border-t border-rose-800/30') : '';
+                    const gd = p.gd15 > 0 ? 'text-emerald-400' : (p.gd15 < 0 ? 'text-rose-400' : 'text-slate-400');
                     const goldK = p.gold ? (p.gold / 1000).toFixed(1) + 'k' : '-';
                     html += `<tr class="${rc} ${border}">`;
-                    html += `<td class="px-2 py-1 text-center text-gray-500 uppercase">${p.pos}</td>`;
-                    html += `<td class="px-2 py-1"><a href="/player/${p.player}" class="text-blue-400 hover:text-blue-300">${p.player}</a></td>`;
+                    html += `<td class="px-2 py-1 text-center uppercase text-slate-500">${p.pos}</td>`;
+                    html += `<td class="px-2 py-1"><a href="/player/${p.player}" class="text-cyan-300 hover:text-cyan-200">${p.player}</a></td>`;
                     html += `<td class="px-2 py-1 font-semibold">${p.champion||'-'}</td>`;
                     html += `<td class="px-2 py-1 text-center">${p.k}/${p.d}/${p.a}</td>`;
-                    html += `<td class="px-2 py-1 text-center text-gray-400">${Math.round(p.dpm)||'-'}</td>`;
-                    html += `<td class="px-2 py-1 text-center text-gray-400">${p.cspm||'-'}</td>`;
-                    html += `<td class="px-2 py-1 text-center text-gray-400">${goldK}</td>`;
-                    html += `<td class="px-2 py-1 text-center text-gray-400">${Math.round(p.vision)||'-'}</td>`;
+                    html += `<td class="px-2 py-1 text-center text-slate-400">${Math.round(p.dpm)||'-'}</td>`;
+                    html += `<td class="px-2 py-1 text-center text-slate-400">${p.cspm||'-'}</td>`;
+                    html += `<td class="px-2 py-1 text-center text-slate-400">${goldK}</td>`;
+                    html += `<td class="px-2 py-1 text-center text-slate-400">${Math.round(p.vision)||'-'}</td>`;
                     html += `<td class="px-2 py-1 text-center ${gd}">${p.gd15 > 0 ? '+' : ''}${Math.round(p.gd15)||'-'}</td>`;
                     html += `</tr>`;
                 });
