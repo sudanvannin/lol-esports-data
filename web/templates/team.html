@@ -1,26 +1,25 @@
 {% extends "base.html" %}
-{% block title %}{{ info.teamname }} — LoL Esports Stats{% endblock %}
+{% block title %}{{ info.teamname }} - LoL Esports Stats{% endblock %}
 {% block content %}
 
-{# ===================== HEADER ===================== #}
-<div class="flex items-start justify-between mb-6 flex-wrap gap-4">
+<div class="mb-8 flex flex-wrap items-start justify-between gap-4">
     <div>
         <h1 class="text-3xl font-bold text-white">{{ info.teamname }}</h1>
-        <span class="text-gray-400 text-sm">{{ info.league }}</span>
-        {% if titles %}
-        <span class="ml-3 text-yellow-400 text-sm font-medium">🏆 {{ titles|length }} title{{ 's' if titles|length != 1
-            }}</span>
-        {% endif %}
+        <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-400">
+            <span>{{ info.league }}</span>
+            {% if titles %}
+            <span class="text-amber-300">{{ titles|length }} title{{ 's' if titles|length != 1 else '' }}</span>
+            {% endif %}
+        </div>
     </div>
-    {# Form streak — last 10 games #}
     {% if form %}
     <div class="flex items-center gap-1.5">
-        <span class="text-xs text-gray-500 mr-1">Last {{ form|length }}:</span>
+        <span class="mr-1 text-xs text-slate-500">Last {{ form|length }}:</span>
         {% for g in form %}
         <span
-            class="w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold
-                   {{ 'bg-green-500/20 text-green-400 border border-green-600' if g.result == 1 else 'bg-red-500/20 text-red-400 border border-red-700' }}"
-            title="{{ g.game_date }} vs {{ g.opp_teamname or '?' }} — {{ g.total_kills }} kills, {{ g.game_minutes }}m">
+            class="flex h-7 w-7 items-center justify-center rounded-full border text-xs font-bold {{ 'border-emerald-700 bg-emerald-500/20 text-emerald-300' if g.result == 1 else 'border-rose-700 bg-rose-500/20 text-rose-300' }}"
+            title="{{ g.game_date }} vs {{ g.opp_teamname or '?' }}"
+        >
             {{ 'W' if g.result == 1 else 'L' }}
         </span>
         {% endfor %}
@@ -28,230 +27,166 @@
     {% endif %}
 </div>
 
-{# ===================== BETTING STATS CARDS ===================== #}
-{% if betting %}
-<div class="mb-8">
-    <h2 class="text-base font-semibold text-yellow-400 mb-3 flex items-center gap-2">⚡ Betting Stats <span
-            class="text-gray-500 text-xs font-normal">({{ betting.games|int }} games total)</span></h2>
-
-    {# — Row 1: Win Rate + First Objectives — #}
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-3">
-
-        {% macro stat_card(label, val, color, suffix='%', sub='') %}
-        <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 flex flex-col gap-1">
-            <div class="text-xs text-gray-500">{{ label }}</div>
-            <div class="text-2xl font-bold {{ color }}">{{ val }}{{ suffix }}</div>
-            {% if sub %}<div class="text-xs text-gray-600">{{ sub }}</div>{% endif %}
-            <div class="h-1.5 bg-gray-800 rounded-full mt-1 overflow-hidden">
-                <div class="h-full rounded-full {{ color.replace('text-','bg-') }}"
-                    style="width: {{ [val|float, 100]|min }}%"></div>
-            </div>
-        </div>
-        {% endmacro %}
-
-        {{ stat_card('Win Rate', betting.winrate, 'text-green-400' if betting.winrate >= 50 else 'text-red-400') }}
-        {{ stat_card('First Blood', betting.first_blood_pct, 'text-yellow-400' if betting.first_blood_pct >= 50 else
-        'text-gray-400') }}
-        {{ stat_card('First Tower', betting.first_tower_pct, 'text-yellow-400' if betting.first_tower_pct >= 50 else
-        'text-gray-400') }}
-        {{ stat_card('First Dragon', betting.first_dragon_pct, 'text-yellow-400' if betting.first_dragon_pct >= 50 else
-        'text-gray-400') }}
-        {{ stat_card('First Herald', betting.first_herald_pct, 'text-yellow-400' if betting.first_herald_pct >= 50 else
-        'text-gray-400') }}
-        {{ stat_card('First Baron', betting.first_baron_pct, 'text-yellow-400' if betting.first_baron_pct >= 50 else
-        'text-gray-400') }}
-    </div>
-
-    {# — Row 2: Averages + Overs — #}
-    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-
-        {% macro avg_card(label, val, suffix='', color='text-blue-300') %}
-        <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 flex flex-col gap-0.5">
-            <div class="text-xs text-gray-500">{{ label }}</div>
-            <div class="text-xl font-bold font-mono {{ color }}">{{ val }}{{ suffix }}</div>
-        </div>
-        {% endmacro %}
-
-        {% macro over_card(label, val, threshold) %}
-        <div class="bg-gray-900 border border-gray-800 rounded-lg p-3 flex flex-col gap-0.5">
-            <div class="text-xs text-gray-500">{{ label }}</div>
-            <div class="text-xl font-bold font-mono {{ 'text-purple-300' if val >= 55 else 'text-gray-400' }}">{{ val
-                }}%</div>
-            <div class="text-xs text-gray-600">Over {{ threshold }}</div>
-        </div>
-        {% endmacro %}
-
-        {{ avg_card('Avg Kills', betting.avg_total_kills) }}
-        {{ avg_card('Avg Towers', betting.avg_total_towers) }}
-        {{ avg_card('Avg Dragons', betting.avg_total_dragons) }}
-        {{ avg_card('Avg Nashors', betting.avg_total_nashors) }}
-        {{ avg_card('Avg Time', betting.avg_game_minutes, 'm') }}
-        {{ over_card('Kills Over', betting.kills_over_25_pct, 25) }}
-        {{ over_card('Towers Over', betting.towers_over_10_pct, 10) }}
-        {{ over_card('Nashor Over', betting.nashors_over_1_5_pct, 1.5) }}
-    </div>
-</div>
-{% endif %}
-
-{# ===================== CHARTS ===================== #}
 {% if wr_by_split and wr_by_split|length > 1 %}
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
-        <h3 class="text-sm font-semibold text-gray-300 mb-4">Win Rate by Split</h3>
+<div class="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <h2 class="mb-4 text-sm font-semibold text-slate-300">Win Rate by Split</h2>
         <canvas id="wrChart" height="120"></canvas>
     </div>
-    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
-        <h3 class="text-sm font-semibold text-gray-300 mb-4">Avg Total Kills by Split</h3>
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <h2 class="mb-4 text-sm font-semibold text-slate-300">Average Kills by Split</h2>
         <canvas id="killsChart" height="120"></canvas>
     </div>
 </div>
 {% endif %}
 
-{# ===================== MAIN GRID ===================== #}
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-    {# — Left: Roster + Titles — #}
-    <div>
-        <h2 class="text-base font-semibold text-gray-200 mb-3">Current Roster <span
-                class="text-gray-600 text-xs font-normal">(last 90d)</span></h2>
-        <div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden mb-6">
-            {% if roster %}
-            <table class="w-full text-sm">
-                <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
-                    <tr>
-                        <th class="px-4 py-2 text-center">Pos</th>
-                        <th class="px-4 py-2 text-left">Player</th>
-                        <th class="px-4 py-2 text-center">G</th>
-                        <th class="px-4 py-2 text-center">WR</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-800">
-                    {% for p in roster %}
-                    <tr class="hover:bg-gray-800/50">
-                        <td class="px-4 py-2 text-center text-gray-500 uppercase text-xs">{{ p.position }}</td>
-                        <td class="px-4 py-2">
-                            <a href="/player/{{ p.playername }}"
-                                class="text-blue-400 hover:text-blue-300 font-semibold">{{ p.playername }}</a>
-                        </td>
-                        <td class="px-4 py-2 text-center text-gray-400">{{ p.games|int }}</td>
-                        <td
-                            class="px-4 py-2 text-center font-semibold {{ 'text-green-400' if p.winrate > 50 else ('text-red-400' if p.winrate < 50 else 'text-gray-400') }}">
-                            {{ p.winrate }}%
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <p class="p-4 text-gray-500 text-sm">No recent roster data.</p>
-            {% endif %}
-        </div>
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div class="space-y-6">
+        <section>
+            <h2 class="mb-3 text-base font-semibold text-slate-200">Current Roster <span class="text-xs font-normal text-slate-500">(last 90d)</span></h2>
+            <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                {% if roster %}
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-800 text-xs uppercase text-slate-400">
+                        <tr>
+                            <th class="px-4 py-2 text-center">Pos</th>
+                            <th class="px-4 py-2 text-left">Player</th>
+                            <th class="px-4 py-2 text-center">G</th>
+                            <th class="px-4 py-2 text-center">WR</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        {% for p in roster %}
+                        <tr class="hover:bg-slate-800/40">
+                            <td class="px-4 py-2 text-center text-xs uppercase text-slate-500">{{ p.position }}</td>
+                            <td class="px-4 py-2">
+                                <a href="/player/{{ p.playername }}" class="font-semibold text-cyan-300 hover:text-cyan-200">{{ p.playername }}</a>
+                            </td>
+                            <td class="px-4 py-2 text-center text-slate-400">{{ p.games|int }}</td>
+                            <td class="px-4 py-2 text-center font-semibold {{ 'text-emerald-400' if p.winrate > 50 else ('text-rose-400' if p.winrate < 50 else 'text-slate-400') }}">
+                                {{ p.winrate }}%
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="p-4 text-sm text-slate-500">No recent roster data.</p>
+                {% endif %}
+            </div>
+        </section>
 
         {% if titles %}
-        <h2 class="text-base font-semibold text-gray-200 mb-3">🏆 Titles ({{ titles|length }})</h2>
-        <div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
-            <table class="w-full text-sm">
-                <tbody class="divide-y divide-gray-800">
-                    {% for t in titles %}
-                    <tr class="hover:bg-gray-800/50">
-                        <td class="px-4 py-2 font-bold text-yellow-400">{{ t.year|int }}</td>
-                        <td class="px-4 py-2">
-                            <a href="/tournament/{{ t.league }}/{{ t.year|int }}"
-                                class="text-blue-400 hover:text-blue-300">{{ t.league }}</a>
-                        </td>
-                        <td class="px-4 py-2 text-gray-500 text-xs">{{ t.final_score }} vs {{ t.runner_up }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <section>
+            <h2 class="mb-3 text-base font-semibold text-slate-200">Titles</h2>
+            <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                <table class="w-full text-sm">
+                    <tbody class="divide-y divide-slate-800">
+                        {% for t in titles %}
+                        <tr class="hover:bg-slate-800/40">
+                            <td class="px-4 py-2 font-bold text-amber-300">{{ t.year|int }}</td>
+                            <td class="px-4 py-2">
+                                <a href="/tournament/{{ t.league }}/{{ t.year|int }}" class="text-cyan-300 hover:text-cyan-200">{{ t.league }}</a>
+                            </td>
+                            <td class="px-4 py-2 text-xs text-slate-500">{{ t.final_score }} vs {{ t.runner_up }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
         {% endif %}
     </div>
 
-    {# — Right: Stats by Split + Recent Series — #}
-    <div class="lg:col-span-2">
-        <h2 class="text-base font-semibold text-gray-200 mb-3">Stats by Split</h2>
-        <div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden mb-6">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Year</th>
-                        <th class="px-3 py-2 text-left">League</th>
-                        <th class="px-3 py-2 text-left">Split</th>
-                        <th class="px-3 py-2 text-center">G</th>
-                        <th class="px-3 py-2 text-center">W–L</th>
-                        <th class="px-3 py-2 text-center">WR</th>
-                        <th class="px-3 py-2 text-center">Avg Time</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-800">
-                    {% for s in stats_by_split %}
-                    <tr class="hover:bg-gray-800/50">
-                        <td class="px-3 py-2 font-semibold">{{ s.year|int }}</td>
-                        <td class="px-3 py-2 text-gray-300">{{ s.league }}</td>
-                        <td class="px-3 py-2 text-gray-400">{{ s.split or '' }}</td>
-                        <td class="px-3 py-2 text-center text-gray-400">{{ s.games|int }}</td>
-                        <td class="px-3 py-2 text-center font-mono">{{ s.wins|int }}–{{ (s.games - s.wins)|int }}</td>
-                        <td
-                            class="px-3 py-2 text-center font-semibold {{ 'text-green-400' if s.winrate > 50 else ('text-red-400' if s.winrate < 50 else 'text-gray-400') }}">
-                            {{ s.winrate }}%</td>
-                        <td class="px-3 py-2 text-center text-gray-400">{{ (s.avg_length|int // 60) }}m{{
-                            '%02d'|format(s.avg_length|int % 60) }}s</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <div class="lg:col-span-2 space-y-6">
+        <section>
+            <h2 class="mb-3 text-base font-semibold text-slate-200">Stats by Split</h2>
+            <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-800 text-xs uppercase text-slate-400">
+                        <tr>
+                            <th class="px-3 py-2 text-left">Year</th>
+                            <th class="px-3 py-2 text-left">League</th>
+                            <th class="px-3 py-2 text-left">Split</th>
+                            <th class="px-3 py-2 text-center">G</th>
+                            <th class="px-3 py-2 text-center">W-L</th>
+                            <th class="px-3 py-2 text-center">WR</th>
+                            <th class="px-3 py-2 text-center">Avg Time</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        {% for s in stats_by_split %}
+                        <tr class="hover:bg-slate-800/40">
+                            <td class="px-3 py-2 font-semibold">{{ s.year|int }}</td>
+                            <td class="px-3 py-2 text-slate-300">{{ s.league }}</td>
+                            <td class="px-3 py-2 text-slate-400">{{ s.split or '' }}</td>
+                            <td class="px-3 py-2 text-center text-slate-400">{{ s.games|int }}</td>
+                            <td class="px-3 py-2 text-center font-mono">{{ s.wins|int }}-{{ (s.games - s.wins)|int }}</td>
+                            <td class="px-3 py-2 text-center font-semibold {{ 'text-emerald-400' if s.winrate > 50 else ('text-rose-400' if s.winrate < 50 else 'text-slate-400') }}">
+                                {{ s.winrate }}%
+                            </td>
+                            <td class="px-3 py-2 text-center text-slate-400">
+                                {{ (s.avg_length|int // 60) }}m{{ '%02d'|format(s.avg_length|int % 60) }}s
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
-        <h2 class="text-base font-semibold text-gray-200 mb-3">Recent Series</h2>
-        <div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Date</th>
-                        <th class="px-3 py-2 text-left">League</th>
-                        <th class="px-3 py-2 text-left">Opponent</th>
-                        <th class="px-3 py-2 text-center">Score</th>
-                        <th class="px-3 py-2 text-center">Result</th>
-                        <th class="px-2 py-2 w-8"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-800">
-                    {% for s in recent_series %}
-                    {% set opponent = s.team2 if s.team1|lower == info.teamname|lower else s.team1 %}
-                    {% set won = s.series_winner|lower == info.teamname|lower %}
-                    <tr class="hover:bg-gray-800/50 {{ 'win' if won else 'loss' }}">
-                        <td class="px-3 py-2 text-gray-400">{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else ''
-                            }}</td>
-                        <td class="px-3 py-2"><a
-                                href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}"
-                                class="text-blue-400 hover:text-blue-300">{{ s.league }}</a></td>
-                        <td class="px-3 py-2 flex items-center justify-between">
-                            <a href="/team/{{ opponent }}" class="hover:underline">{{ opponent }}</a>
-                            <a href="/compare?mode=teams&p1={{ info.teamname }}&p2={{ opponent }}"
-                                title="Compare Head-to-Head"
-                                class="text-xs bg-gray-800 hover:bg-yellow-500 hover:text-gray-900 border border-gray-700 text-gray-400 px-2 py-0.5 rounded transition-colors ml-2">⚔️
-                                H2H</a>
-                        </td>
-                        <td class="px-3 py-2 text-center font-mono">{{ s.score }}</td>
-                        <td class="px-3 py-2 text-center">
-                            <span class="{{ 'text-green-400' if won else 'text-red-400' }} font-bold">{{ 'W' if won else
-                                'L' }}</span>
-                        </td>
-                        <td class="px-2 py-2 text-center">
-                            <button
-                                onclick="toggleSeries(this, '{{ s.team1 }}', '{{ s.team2 }}', '{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}')"
-                                class="text-gray-500 hover:text-blue-400 text-xs bg-gray-800 px-2 py-0.5 rounded">+</button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <section>
+            <h2 class="mb-3 text-base font-semibold text-slate-200">Recent Series</h2>
+            <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-800 text-xs uppercase text-slate-400">
+                        <tr>
+                            <th class="px-3 py-2 text-left">Date</th>
+                            <th class="px-3 py-2 text-left">League</th>
+                            <th class="px-3 py-2 text-left">Opponent</th>
+                            <th class="px-3 py-2 text-center">Score</th>
+                            <th class="px-3 py-2 text-center">Result</th>
+                            <th class="w-8 px-2 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        {% for s in recent_series %}
+                        {% set opponent = s.team2 if s.team1|lower == info.teamname|lower else s.team1 %}
+                        {% set won = s.series_winner|lower == info.teamname|lower %}
+                        <tr class="hover:bg-slate-800/40 {{ 'win' if won else 'loss' }}">
+                            <td class="px-3 py-2 text-slate-400">{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}</td>
+                            <td class="px-3 py-2">
+                                <a href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}" class="text-cyan-300 hover:text-cyan-200">{{ s.league }}</a>
+                            </td>
+                            <td class="px-3 py-2 flex items-center justify-between gap-2">
+                                <a href="/team/{{ opponent }}" class="hover:underline">{{ opponent }}</a>
+                                <a
+                                    href="/compare?mode=teams&p1={{ info.teamname }}&p2={{ opponent }}"
+                                    title="Compare head-to-head"
+                                    class="rounded border border-slate-700 bg-slate-800 px-2 py-0.5 text-xs text-slate-400 transition-colors hover:bg-slate-700 hover:text-white"
+                                >
+                                    H2H
+                                </a>
+                            </td>
+                            <td class="px-3 py-2 text-center font-mono">{{ s.score }}</td>
+                            <td class="px-3 py-2 text-center">
+                                <span class="{{ 'text-emerald-400' if won else 'text-rose-400' }} font-bold">{{ 'W' if won else 'L' }}</span>
+                            </td>
+                            <td class="px-2 py-2 text-center">
+                                <button
+                                    onclick="toggleSeries(this, '{{ s.team1 }}', '{{ s.team2 }}', '{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}')"
+                                    class="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-500 hover:text-cyan-300"
+                                >+</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
 </div>
 
-{# ===================== CHART.JS ===================== #}
 {% if wr_by_split and wr_by_split|length > 1 %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
@@ -259,7 +194,6 @@
     const labels = splitData.map(d => `${d.year} ${d.split || ''}`);
     const wrVals = splitData.map(d => d.winrate);
     const killVals = splitData.map(d => d.avg_kills);
-    const timeVals = splitData.map(d => d.avg_minutes);
 
     const chartDefaults = {
         responsive: true,
@@ -270,7 +204,6 @@
         }
     };
 
-    // Win Rate chart
     new Chart(document.getElementById('wrChart'), {
         type: 'bar',
         data: {
@@ -284,10 +217,10 @@
             }, {
                 type: 'line',
                 data: wrVals,
-                borderColor: '#facc15',
+                borderColor: '#67e8f9',
                 borderWidth: 2,
                 pointRadius: 3,
-                pointBackgroundColor: '#facc15',
+                pointBackgroundColor: '#67e8f9',
                 tension: 0.3,
                 yAxisID: 'y',
             }]
@@ -308,7 +241,6 @@
         }
     });
 
-    // Kills chart
     new Chart(document.getElementById('killsChart'), {
         type: 'line',
         data: {
