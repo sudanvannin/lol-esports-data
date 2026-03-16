@@ -58,7 +58,9 @@ def test_normalize_upcoming_match_rows_keeps_only_future_unfinished_known_teams(
         },
     ]
 
-    upcoming_df = normalize_upcoming_match_rows(rows, reference_time=pd.Timestamp("2026-03-15T00:00:00Z"))
+    upcoming_df = normalize_upcoming_match_rows(
+        rows, reference_time=pd.Timestamp("2026-03-15T00:00:00Z")
+    )
 
     assert len(upcoming_df) == 1
     record = upcoming_df.iloc[0].to_dict()

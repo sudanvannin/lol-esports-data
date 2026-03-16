@@ -1,8 +1,8 @@
 """DuckDB query engine for Silver Parquet data."""
 
 import os
-from pathlib import Path
 import threading
+from pathlib import Path
 
 import duckdb
 import pandas as pd
@@ -17,6 +17,7 @@ _upcoming_cache_df = None
 _upcoming_cache_meta = None
 _upcoming_cache_mtime = None
 
+
 def _get_persistent_con():
     """Return a persistent MotherDuck connection."""
     global _con
@@ -25,19 +26,21 @@ def _get_persistent_con():
     with _lock:
         if _con is not None:
             return _con
-            
+
         token = os.environ.get("MOTHERDUCK_TOKEN")
         db_name = os.environ.get("MOTHERDUCK_DB", "lolesports")
-        
+
         if token:
             print(f"Connecting to MotherDuck ({db_name})...")
             # Connect to MotherDuck
             con = duckdb.connect(f"md:{db_name}?motherduck_token={token}")
         else:
-            print("WARNING: MOTHERDUCK_TOKEN not found. Using local in-memory DB (data may be missing).")
+            print(
+                "WARNING: MOTHERDUCK_TOKEN not found. Using local in-memory DB (data may be missing)."
+            )
             # Fallback to local memory if token is missing
             con = duckdb.connect(":memory:")
-            
+
         _con = con
     return _con
 
@@ -55,13 +58,13 @@ def reload_data():
 def query_df(sql: str, params: dict | None = None):
     """Execute query and return pandas DataFrame."""
     con = _get_persistent_con()
-    
+
     # Replace old parquet path constants with actual table names
     sql = sql.replace("games", "games")
     sql = sql.replace("players", "players")
     sql = sql.replace("series", "series")
     sql = sql.replace("champions", "champions")
-    
+
     if params:
         for k, v in params.items():
             sql = sql.replace(f"${k}", str(v))
@@ -82,7 +85,9 @@ def _load_local_upcoming_matches_cached():
 
     upcoming_path = Path("data/bronze/leaguepedia/match_results.json")
     try:
-        current_mtime = upcoming_path.stat().st_mtime if upcoming_path.exists() else None
+        current_mtime = (
+            upcoming_path.stat().st_mtime if upcoming_path.exists() else None
+        )
     except OSError:
         current_mtime = None
 
@@ -136,7 +141,11 @@ def get_upcoming_matches(limit: int = 20, league: str | None = None):
     local_df, _ = _load_local_upcoming_matches_cached()
     if safe_league:
         local_df = local_df.loc[local_df["league"] == safe_league].copy()
-    return local_df.sort_values(["match_time", "league", "team1", "team2"], kind="stable").head(limit).reset_index(drop=True)
+    return (
+        local_df.sort_values(["match_time", "league", "team1", "team2"], kind="stable")
+        .head(limit)
+        .reset_index(drop=True)
+    )
 
 
 def get_upcoming_match_leagues():
@@ -198,29 +207,35 @@ def get_upcoming_matches_meta():
 # HOME
 # =============================================================
 
+
 def get_recent_series(limit: int = 20):
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT match_date, league, team1, team2, score, series_winner,
                series_format, tournament_phase
         FROM series
         ORDER BY match_date DESC
         LIMIT {limit}
-    """)
+    """
+    )
 
 
 def get_active_leagues():
-    return query_df(f"""
+    return query_df(
+        """
         SELECT league, MAX(match_date) as last_match, COUNT(*) as total_series
         FROM series
         WHERE match_date >= CURRENT_DATE - INTERVAL '30 days'
         GROUP BY league
         ORDER BY last_match DESC
-    """)
+    """
+    )
 
 
 def search_players(term: str):
     safe = term.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         WITH ranked AS (
             SELECT playername, teamname, position, league,
                    MAX(game_date) as last_game,
@@ -236,12 +251,14 @@ def search_players(term: str):
         FROM ranked WHERE rn = 1
         ORDER BY last_game DESC
         LIMIT 20
-    """)
+    """
+    )
 
 
 def search_teams(term: str):
     safe = term.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         WITH ranked AS (
             SELECT teamname, league,
                    MAX(game_date) as last_game,
@@ -257,22 +274,26 @@ def search_teams(term: str):
         FROM ranked WHERE rn = 1
         ORDER BY last_game DESC
         LIMIT 20
-    """)
+    """
+    )
 
 
 # =============================================================
 # PLAYER
 # =============================================================
 
+
 def get_player_info(name: str):
     safe = name.replace("'", "''")
-    return query_one(f"""
+    return query_one(
+        f"""
         SELECT playername, teamname, position, league
         FROM players
         WHERE LOWER(playername) = LOWER('{safe}')
         ORDER BY game_date DESC
         LIMIT 1
-    """)
+    """
+    )
 
 
 def get_player_career_stats(name: str, year: int = None, split: str = None):
@@ -284,7 +305,8 @@ def get_player_career_stats(name: str, year: int = None, split: str = None):
         split_safe = split.replace("'", "''")
         conditions.append(f"split = '{split_safe}'")
     where = " AND ".join(conditions)
-    return query_one(f"""
+    return query_one(
+        f"""
         SELECT
             COUNT(*) as games,
             SUM(result) as wins,
@@ -301,12 +323,14 @@ def get_player_career_stats(name: str, year: int = None, split: str = None):
             ROUND(AVG(visionscore), 1) as avg_vs
         FROM players
         WHERE {where}
-    """)
+    """
+    )
 
 
 def get_player_by_year(name: str):
     safe = name.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT
             year,
             split,
@@ -322,10 +346,13 @@ def get_player_by_year(name: str):
         WHERE LOWER(playername) = LOWER('{safe}')
         GROUP BY year, split, teamname
         ORDER BY year DESC, split
-    """)
+    """
+    )
 
 
-def get_player_champions(name: str, year: int = None, split: str = None, limit: int = 15):
+def get_player_champions(
+    name: str, year: int = None, split: str = None, limit: int = 15
+):
     safe = name.replace("'", "''")
     conditions = [f"LOWER(playername) = LOWER('{safe}')"]
     if year:
@@ -334,7 +361,8 @@ def get_player_champions(name: str, year: int = None, split: str = None, limit: 
         split_safe = split.replace("'", "''")
         conditions.append(f"split = '{split_safe}'")
     where = " AND ".join(conditions)
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT
             champion,
             COUNT(*) as games,
@@ -350,10 +378,13 @@ def get_player_champions(name: str, year: int = None, split: str = None, limit: 
         HAVING COUNT(*) >= 1
         ORDER BY games DESC
         LIMIT {limit}
-    """)
+    """
+    )
 
 
-def get_player_recent_games(name: str, year: int = None, split: str = None, limit: int = 20):
+def get_player_recent_games(
+    name: str, year: int = None, split: str = None, limit: int = 20
+):
     safe = name.replace("'", "''")
     conditions = [f"LOWER(playername) = LOWER('{safe}')"]
     if year:
@@ -362,7 +393,8 @@ def get_player_recent_games(name: str, year: int = None, split: str = None, limi
         split_safe = split.replace("'", "''")
         conditions.append(f"split = '{split_safe}'")
     where = " AND ".join(conditions)
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT
             game_date, league, split, teamname, champion, position,
             kills, deaths, assists, dpm, cspm, result
@@ -370,28 +402,33 @@ def get_player_recent_games(name: str, year: int = None, split: str = None, limi
         WHERE {where}
         ORDER BY game_date DESC, game DESC
         LIMIT {limit}
-    """)
+    """
+    )
 
 
 # =============================================================
 # TEAM
 # =============================================================
 
+
 def get_team_info(name: str):
     safe = name.replace("'", "''")
-    return query_one(f"""
+    return query_one(
+        f"""
         SELECT teamname, league
         FROM games
         WHERE LOWER(teamname) = LOWER('{safe}')
            OR LOWER(teamname) LIKE LOWER('%{safe}%')
         ORDER BY game_date DESC
         LIMIT 1
-    """)
+    """
+    )
 
 
 def get_team_roster(name: str):
     safe = name.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         WITH recent AS (
             SELECT playername, position, champion, result, game_date,
                    ROW_NUMBER() OVER (PARTITION BY playername ORDER BY game_date DESC) as rn
@@ -410,12 +447,14 @@ def get_team_roster(name: str):
         ORDER BY CASE position
             WHEN 'top' THEN 1 WHEN 'jng' THEN 2 WHEN 'mid' THEN 3
             WHEN 'bot' THEN 4 WHEN 'sup' THEN 5 ELSE 6 END
-    """)
+    """
+    )
 
 
 def get_team_stats_by_split(name: str):
     safe = name.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT
             year, league, split,
             COUNT(*) as games,
@@ -426,32 +465,44 @@ def get_team_stats_by_split(name: str):
         WHERE LOWER(teamname) = LOWER('{safe}')
         GROUP BY year, league, split
         ORDER BY year DESC, split
-    """)
+    """
+    )
 
 
 def get_team_titles(name: str):
     safe = name.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT year, league, split, runner_up, final_score
         FROM champions
         WHERE LOWER(champion) = LOWER('{safe}')
         ORDER BY final_date DESC
-    """)
+    """
+    )
 
 
 def get_team_recent_series(name: str, limit: int = 20):
     safe = name.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT match_date, league, team1, team2, score,
                series_winner, series_format, tournament_phase
         FROM series
         WHERE LOWER(team1) LIKE LOWER('%{safe}%') OR LOWER(team2) LIKE LOWER('%{safe}%')
         ORDER BY match_date DESC
         LIMIT {limit}
-    """)
+    """
+    )
 
 
-def get_team_betting_stats(name: str, year: int = None, split: str = None, playoffs: int = None, league: str = None, h2h_opponent: str = None):
+def get_team_betting_stats(
+    name: str,
+    year: int = None,
+    split: str = None,
+    playoffs: int = None,
+    league: str = None,
+    h2h_opponent: str = None,
+):
     """Full betting stats for a single team (overall, per-split, or H2H)."""
     safe = name.replace("'", "''")
     conditions = [f"LOWER(teamname) = LOWER('{safe}')"]
@@ -463,21 +514,24 @@ def get_team_betting_stats(name: str, year: int = None, split: str = None, playo
     if split:
         split_safe = split.replace("'", "''")
         if split == "N/A":
-            conditions.append(f"(split IS NULL OR split = '')")
+            conditions.append("(split IS NULL OR split = '')")
         else:
             conditions.append(f"split = '{split_safe}'")
     if playoffs is not None:
         conditions.append(f"COALESCE(playoffs, 0) = {playoffs}")
     if h2h_opponent:
         opp_safe = h2h_opponent.replace("'", "''")
-        conditions.append(f"""gameid IN (
+        conditions.append(
+            f"""gameid IN (
             SELECT gameid FROM games
             WHERE LOWER(teamname) = LOWER('{opp_safe}')
-        )""")
-        
+        )"""
+        )
+
     where = "WHERE " + " AND ".join(conditions)
 
-    return query_one(f"""
+    return query_one(
+        f"""
         WITH base AS (
             SELECT
                 CAST(result AS DOUBLE)                                        AS result,
@@ -515,13 +569,15 @@ def get_team_betting_stats(name: str, year: int = None, split: str = None, playo
             ROUND(100.0 * SUM(CASE WHEN total_nashors >= 2 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 1) AS nashors_over_1_5_pct,
             CAST(MAX(teamkills) AS INTEGER)                                      AS most_kills_game
         FROM base
-    """)
+    """
+    )
 
 
 def get_team_winrate_by_split(name: str):
     """Win rate evolution per split for charting."""
     safe = name.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT
             CAST(year AS INTEGER) as year,
             split,
@@ -533,13 +589,15 @@ def get_team_winrate_by_split(name: str):
         WHERE LOWER(teamname) = LOWER('{safe}')
         GROUP BY year, split
         ORDER BY year ASC, split ASC
-    """)
+    """
+    )
 
 
 def get_team_form(name: str, limit: int = 10):
     """Last N games for form display."""
     safe = name.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT
             game_date,
             CAST(result AS INTEGER) as result,
@@ -557,61 +615,73 @@ def get_team_form(name: str, limit: int = 10):
         ) t
         WHERE rn <= {limit}
         ORDER BY rn DESC
-    """)
+    """
+    )
 
 
 # =============================================================
 # TOURNAMENT
 # =============================================================
 
+
 def get_tournament_leagues():
-    return query_df(f"""
+    return query_df(
+        """
         SELECT DISTINCT league, MIN(year) as from_year, MAX(year) as to_year,
                COUNT(DISTINCT year) as years
         FROM series
         GROUP BY league
         ORDER BY COUNT(*) DESC
-    """)
+    """
+    )
 
 
 def get_tournament_years(league: str):
     safe = league.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT DISTINCT year
         FROM series
         WHERE league = '{safe}'
         ORDER BY year DESC
-    """)
+    """
+    )
 
 
 def get_tournament_results(league: str, year: int):
     safe = league.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT match_date, team1, team2, score, series_winner,
                series_format, tournament_phase
         FROM series
         WHERE league = '{safe}' AND year = {year}
         ORDER BY match_date
-    """)
+    """
+    )
 
 
 def get_tournament_champion(league: str, year: int):
     safe = league.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT champion, runner_up, final_score, split
         FROM champions
         WHERE league = '{safe}' AND year = {year}
         ORDER BY final_date
-    """)
+    """
+    )
 
 
 # =============================================================
 # GAME
 # =============================================================
 
+
 def get_game_players(gameid: str):
     safe = gameid.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT
             teamname, playername, position, champion, side, result,
             kills, deaths, assists, dpm, damageshare,
@@ -623,12 +693,14 @@ def get_game_players(gameid: str):
             CASE position
                 WHEN 'top' THEN 1 WHEN 'jng' THEN 2 WHEN 'mid' THEN 3
                 WHEN 'bot' THEN 4 WHEN 'sup' THEN 5 ELSE 6 END
-    """)
+    """
+    )
 
 
 def get_game_teams(gameid: str):
     safe = gameid.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT
             teamname, side, result, gamelength,
             teamkills, teamdeaths,
@@ -639,7 +711,8 @@ def get_game_teams(gameid: str):
         FROM games
         WHERE gameid = '{safe}'
         ORDER BY side
-    """)
+    """
+    )
 
 
 def search_games(team: str = None, league: str = None, limit: int = 50):
@@ -651,24 +724,28 @@ def search_games(team: str = None, league: str = None, limit: int = 50):
         safe = league.replace("'", "''")
         conditions.append(f"league = '{safe}'")
     where = "WHERE " + " AND ".join(conditions) if conditions else ""
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT DISTINCT gameid, game_date, league, teamname, side, result,
                pick1, pick2, pick3, pick4, pick5, gamelength
         FROM games
         {where}
         ORDER BY game_date DESC
         LIMIT {limit}
-    """)
+    """
+    )
 
 
 # =============================================================
 # COMPARE
 # =============================================================
 
+
 def get_player_comparison(p1: str, p2: str):
     safe1 = p1.replace("'", "''")
     safe2 = p2.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT
             playername,
             COUNT(*) as games,
@@ -686,13 +763,15 @@ def get_player_comparison(p1: str, p2: str):
         FROM players
         WHERE LOWER(playername) IN (LOWER('{safe1}'), LOWER('{safe2}'))
         GROUP BY playername
-    """)
+    """
+    )
 
 
 def get_head_to_head(p1: str, p2: str):
     safe1 = p1.replace("'", "''")
     safe2 = p2.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         WITH p1_games AS (
             SELECT gameid, teamname as p1_team, result as p1_result,
                    champion as p1_champ, kills as p1_k, deaths as p1_d, assists as p1_a
@@ -718,12 +797,14 @@ def get_head_to_head(p1: str, p2: str):
         FROM p1_games p1
         JOIN p2_games p2 ON p1.gameid = p2.gameid
         WHERE p1.p1_team != p2.p2_team
-    """)
+    """
+    )
 
 
 # =============================================================
 # SERIES GAMES (expandable details)
 # =============================================================
+
 
 def get_series_games(team1: str, team2: str, date: str) -> list[dict]:
     """Get all games in a series with full player stats."""
@@ -731,7 +812,8 @@ def get_series_games(team1: str, team2: str, date: str) -> list[dict]:
     safe2 = team2.replace("'", "''")
     safe_date = date.replace("'", "''")
 
-    games_df = query_df(f"""
+    games_df = query_df(
+        f"""
         SELECT DISTINCT g1.gameid, g1.game_date, g1.game,
                g1.teamname as team1_name, g1.side as team1_side, g1.result as team1_result,
                g1.gamelength,
@@ -750,7 +832,8 @@ def get_series_games(team1: str, team2: str, date: str) -> list[dict]:
               OR (LOWER(g1.teamname) LIKE LOWER('%{safe1}%') AND LOWER(g2.teamname) LIKE LOWER('%{safe2}%'))
           )
         ORDER BY g1.game
-    """)
+    """
+    )
 
     if len(games_df) == 0:
         return []
@@ -758,7 +841,8 @@ def get_series_games(team1: str, team2: str, date: str) -> list[dict]:
     result = []
     for _, g in games_df.iterrows():
         gameid = g["gameid"]
-        players_df = query_df(f"""
+        players_df = query_df(
+            f"""
             SELECT playername, teamname, position, champion, side,
                    kills, deaths, assists,
                    COALESCE(dpm, 0) as dpm,
@@ -774,13 +858,15 @@ def get_series_games(team1: str, team2: str, date: str) -> list[dict]:
                 CASE position
                     WHEN 'top' THEN 1 WHEN 'jng' THEN 2 WHEN 'mid' THEN 3
                     WHEN 'bot' THEN 4 WHEN 'sup' THEN 5 ELSE 6 END
-        """)
+        """
+        )
 
         def _safe(v):
             if v is None:
                 return None
             try:
                 import numpy as np
+
                 if isinstance(v, (np.integer,)):
                     return int(v)
                 if isinstance(v, (np.floating,)):
@@ -796,21 +882,23 @@ def get_series_games(team1: str, team2: str, date: str) -> list[dict]:
             tn = p["teamname"]
             if tn not in teams:
                 teams[tn] = []
-            teams[tn].append({
-                "player": p["playername"],
-                "pos": p["position"],
-                "champion": p["champion"],
-                "k": _safe(p["kills"]),
-                "d": _safe(p["deaths"]),
-                "a": _safe(p["assists"]),
-                "dpm": _safe(p["dpm"]),
-                "cspm": _safe(p["cspm"]),
-                "gold": _safe(p["gold"]),
-                "vision": _safe(p["vision"]),
-                "gd15": _safe(p["gd15"]),
-                "dmg_pct": _safe(p["dmg_share"] * 100 if p["dmg_share"] else 0),
-                "win": int(p["result"]) if p["result"] is not None else 0,
-            })
+            teams[tn].append(
+                {
+                    "player": p["playername"],
+                    "pos": p["position"],
+                    "champion": p["champion"],
+                    "k": _safe(p["kills"]),
+                    "d": _safe(p["deaths"]),
+                    "a": _safe(p["assists"]),
+                    "dpm": _safe(p["dpm"]),
+                    "cspm": _safe(p["cspm"]),
+                    "gold": _safe(p["gold"]),
+                    "vision": _safe(p["vision"]),
+                    "gd15": _safe(p["gd15"]),
+                    "dmg_pct": _safe(p["dmg_share"] * 100 if p["dmg_share"] else 0),
+                    "win": int(p["result"]) if p["result"] is not None else 0,
+                }
+            )
 
         game_data = {
             "gameid": gameid,
@@ -824,7 +912,9 @@ def get_series_games(team1: str, team2: str, date: str) -> list[dict]:
                 "towers": _safe(g["t1_towers"]),
                 "dragons": _safe(g["t1_dragons"]),
                 "barons": _safe(g["t1_barons"]),
-                "picks": [g[f"t1_pick{i}"] for i in range(1, 6) if g.get(f"t1_pick{i}")],
+                "picks": [
+                    g[f"t1_pick{i}"] for i in range(1, 6) if g.get(f"t1_pick{i}")
+                ],
                 "bans": [g[f"t1_ban{i}"] for i in range(1, 6) if g.get(f"t1_ban{i}")],
                 "players": teams.get(g["team1_name"], []),
             },
@@ -836,7 +926,9 @@ def get_series_games(team1: str, team2: str, date: str) -> list[dict]:
                 "towers": _safe(g["t2_towers"]),
                 "dragons": _safe(g["t2_dragons"]),
                 "barons": _safe(g["t2_barons"]),
-                "picks": [g[f"t2_pick{i}"] for i in range(1, 6) if g.get(f"t2_pick{i}")],
+                "picks": [
+                    g[f"t2_pick{i}"] for i in range(1, 6) if g.get(f"t2_pick{i}")
+                ],
                 "bans": [g[f"t2_ban{i}"] for i in range(1, 6) if g.get(f"t2_ban{i}")],
                 "players": teams.get(g["team2_name"], []),
             },
@@ -850,25 +942,37 @@ def get_series_games(team1: str, team2: str, date: str) -> list[dict]:
 # COMPARE TEAMS
 # =============================================================
 
+
 def _resolve_team_name(name: str) -> str | None:
     """Resolve a partial team name to the exact name in data, preferring exact match."""
     safe = name.replace("'", "''")
-    exact = query_one(f"""
+    exact = query_one(
+        f"""
         SELECT teamname FROM games
         WHERE LOWER(teamname) = LOWER('{safe}')
         ORDER BY game_date DESC LIMIT 1
-    """)
+    """
+    )
     if exact:
         return exact["teamname"]
-    fuzzy = query_one(f"""
+    fuzzy = query_one(
+        f"""
         SELECT teamname FROM games
         WHERE LOWER(teamname) LIKE LOWER('%{safe}%')
         ORDER BY game_date DESC LIMIT 1
-    """)
+    """
+    )
     return fuzzy["teamname"] if fuzzy else None
 
 
-def get_team_comparison(t1: str, t2: str, year: int = None, split: str = None, playoffs: int = None, league: str = None):
+def get_team_comparison(
+    t1: str,
+    t2: str,
+    year: int = None,
+    split: str = None,
+    playoffs: int = None,
+    league: str = None,
+):
     name1 = _resolve_team_name(t1)
     name2 = _resolve_team_name(t2)
     if not name1 or not name2:
@@ -876,11 +980,13 @@ def get_team_comparison(t1: str, t2: str, year: int = None, split: str = None, p
     safe1 = name1.replace("'", "''")
     safe2 = name2.replace("'", "''")
     conditions = [f"LOWER(teamname) IN (LOWER('{safe1}'), LOWER('{safe2}'))"]
-    conditions.append(f"""gameid IN (
+    conditions.append(
+        f"""gameid IN (
         SELECT gameid FROM games WHERE LOWER(teamname) = LOWER('{safe1}')
         INTERSECT
         SELECT gameid FROM games WHERE LOWER(teamname) = LOWER('{safe2}')
-    )""")
+    )"""
+    )
     if year:
         conditions.append(f"year = {year}")
     if league:
@@ -889,14 +995,15 @@ def get_team_comparison(t1: str, t2: str, year: int = None, split: str = None, p
     if split:
         split_safe = split.replace("'", "''")
         if split == "N/A":
-            conditions.append(f"(split IS NULL OR split = '')")
+            conditions.append("(split IS NULL OR split = '')")
         else:
             conditions.append(f"COALESCE(split, '') = '{split_safe}'")
     if playoffs is not None:
         conditions.append(f"COALESCE(playoffs, 0) = {playoffs}")
     where = "WHERE " + " AND ".join(conditions)
 
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT
             teamname,
             COUNT(*) as games,
@@ -915,18 +1022,28 @@ def get_team_comparison(t1: str, t2: str, year: int = None, split: str = None, p
         FROM games
         {where}
         GROUP BY teamname
-    """)
+    """
+    )
 
 
-def get_team_head_to_head(t1: str, t2: str, year: int = None, split: str = None, playoffs: int = None, league: str = None):
+def get_team_head_to_head(
+    t1: str,
+    t2: str,
+    year: int = None,
+    split: str = None,
+    playoffs: int = None,
+    league: str = None,
+):
     name1 = _resolve_team_name(t1)
     name2 = _resolve_team_name(t2)
     if not name1 or not name2:
         return query_df("SELECT 1 WHERE false")
     safe1 = name1.replace("'", "''")
     safe2 = name2.replace("'", "''")
-    
-    conditions = [f"((team1 = '{safe1}' AND team2 = '{safe2}') OR (team1 = '{safe2}' AND team2 = '{safe1}'))"]
+
+    conditions = [
+        f"((team1 = '{safe1}' AND team2 = '{safe2}') OR (team1 = '{safe2}' AND team2 = '{safe1}'))"
+    ]
     if year:
         conditions.append(f"year = {year}")
     if league:
@@ -935,14 +1052,15 @@ def get_team_head_to_head(t1: str, t2: str, year: int = None, split: str = None,
     if split:
         split_safe = split.replace("'", "''")
         if split == "N/A":
-            conditions.append(f"(split IS NULL OR split = '')")
+            conditions.append("(split IS NULL OR split = '')")
         else:
             conditions.append(f"COALESCE(split, '') = '{split_safe}'")
     if playoffs is not None:
         conditions.append(f"COALESCE(playoffs, 0) = {playoffs}")
     where = "WHERE " + " AND ".join(conditions)
 
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT
             match_date,
             CAST(year AS INTEGER) as year,
@@ -958,7 +1076,8 @@ def get_team_head_to_head(t1: str, t2: str, year: int = None, split: str = None,
         FROM series
         {where}
         ORDER BY match_date DESC
-    """)
+    """
+    )
 
 
 def get_team_h2h_by_split(t1: str, t2: str):
@@ -969,7 +1088,8 @@ def get_team_h2h_by_split(t1: str, t2: str):
         return []
     safe1 = name1.replace("'", "''")
     safe2 = name2.replace("'", "''")
-    df = query_df(f"""
+    df = query_df(
+        f"""
         SELECT
             CAST(year AS INTEGER) as year,
             league,
@@ -983,19 +1103,29 @@ def get_team_h2h_by_split(t1: str, t2: str):
            OR (team1 = '{safe2}' AND team2 = '{safe1}')
         GROUP BY year, league, split, playoffs
         ORDER BY year DESC, league, split, playoffs
-    """)
+    """
+    )
     return df.to_dict("records")
 
 
-def get_team_h2h_summary(t1: str, t2: str, year: int = None, split: str = None, playoffs: int = None, league: str = None):
+def get_team_h2h_summary(
+    t1: str,
+    t2: str,
+    year: int = None,
+    split: str = None,
+    playoffs: int = None,
+    league: str = None,
+):
     name1 = _resolve_team_name(t1)
     name2 = _resolve_team_name(t2)
     if not name1 or not name2:
         return {"total_series": 0, "t1_wins": 0, "t2_wins": 0}
     safe1 = name1.replace("'", "''")
     safe2 = name2.replace("'", "''")
-    
-    conditions = [f"((team1 = '{safe1}' AND team2 = '{safe2}') OR (team1 = '{safe2}' AND team2 = '{safe1}'))"]
+
+    conditions = [
+        f"((team1 = '{safe1}' AND team2 = '{safe2}') OR (team1 = '{safe2}' AND team2 = '{safe1}'))"
+    ]
     if year:
         conditions.append(f"year = {year}")
     if league:
@@ -1004,14 +1134,15 @@ def get_team_h2h_summary(t1: str, t2: str, year: int = None, split: str = None, 
     if split:
         split_safe = split.replace("'", "''")
         if split == "N/A":
-            conditions.append(f"(split IS NULL OR split = '')")
+            conditions.append("(split IS NULL OR split = '')")
         else:
             conditions.append(f"COALESCE(split, '') = '{split_safe}'")
     if playoffs is not None:
         conditions.append(f"COALESCE(playoffs, 0) = {playoffs}")
     where = "WHERE " + " AND ".join(conditions)
 
-    row = query_one(f"""
+    row = query_one(
+        f"""
         WITH h2h AS (
             SELECT series_winner
             FROM series
@@ -1022,7 +1153,8 @@ def get_team_h2h_summary(t1: str, t2: str, year: int = None, split: str = None, 
             SUM(CASE WHEN series_winner = '{safe1}' THEN 1 ELSE 0 END) as t1_wins,
             SUM(CASE WHEN series_winner = '{safe2}' THEN 1 ELSE 0 END) as t2_wins
         FROM h2h
-    """)
+    """
+    )
     if not row:
         return {"total_series": 0, "t1_wins": 0, "t2_wins": 0}
     return {k: int(v) if v is not None else 0 for k, v in row.items()}
@@ -1031,6 +1163,7 @@ def get_team_h2h_summary(t1: str, t2: str, year: int = None, split: str = None, 
 # =============================================================
 # RANKINGS
 # =============================================================
+
 
 def get_player_rankings(
     stat: str = "kda",
@@ -1067,7 +1200,8 @@ def get_player_rankings(
 
     stat_sql = stat_cols.get(stat, stat_cols["kda"])
 
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT
             playername, position, teamname, league,
             COUNT(*) as games,
@@ -1080,38 +1214,45 @@ def get_player_rankings(
         HAVING COUNT(*) >= {min_games}
         ORDER BY value DESC
         LIMIT {limit}
-    """)
+    """
+    )
 
 
 def get_player_splits(name: str):
     safe = name.replace("'", "''")
-    return query_df(f"""
+    return query_df(
+        f"""
         SELECT DISTINCT year, split
         FROM players
         WHERE LOWER(playername) = LOWER('{safe}')
         ORDER BY year DESC, split
-    """)
+    """
+    )
 
 
 def get_available_years():
-    return query_df(f"""
+    return query_df(
+        """
         SELECT DISTINCT year FROM players
         ORDER BY year DESC
-    """)["year"].tolist()
+    """
+    )["year"].tolist()
 
 
 def get_available_leagues():
-    return query_df(f"""
+    return query_df(
+        """
         SELECT DISTINCT league, COUNT(*) as c
         FROM players
         GROUP BY league ORDER BY c DESC
-    """)["league"].tolist()
-
+    """
+    )["league"].tolist()
 
 
 # =============================================================
 # BETTING STATS
 # =============================================================
+
 
 def get_betting_stats(
     team: str = None,
@@ -1142,7 +1283,8 @@ def get_betting_stats(
 
     where = "WHERE " + " AND ".join(conditions)
 
-    return query_df(f"""
+    return query_df(
+        f"""
         WITH base AS (
             SELECT
                 teamname,
@@ -1188,33 +1330,42 @@ def get_betting_stats(
         HAVING COUNT(*) >= 3
         ORDER BY games DESC
         LIMIT {limit}
-    """)
+    """
+    )
 
 
 def get_betting_filters():
     """Leagues, years, splits available for betting page filters."""
-    leagues = query_df(f"""
+    leagues = query_df(
+        """
         SELECT DISTINCT league, COUNT(*) as c
         FROM games
         GROUP BY league ORDER BY c DESC
-    """)["league"].tolist()
+    """
+    )["league"].tolist()
 
-    years = query_df(f"""
+    years = query_df(
+        """
         SELECT DISTINCT year FROM games ORDER BY year DESC
-    """)["year"].tolist()
+    """
+    )["year"].tolist()
 
-    splits = query_df(f"""
+    splits = query_df(
+        """
         SELECT DISTINCT split FROM games
         WHERE split IS NOT NULL ORDER BY split
-    """)["split"].tolist()
+    """
+    )["split"].tolist()
 
     return leagues, years, splits
 
 
 def get_available_splits():
-    return query_df(f"""
+    return query_df(
+        """
         SELECT DISTINCT split
         FROM players
         WHERE split IS NOT NULL
         ORDER BY split
-    """)["split"].tolist()
+    """
+    )["split"].tolist()

@@ -92,7 +92,9 @@ def normalize_upcoming_match_rows(
                 "phase_label": _build_phase_label(row),
                 "team1": team1,
                 "team2": team2,
-                "best_of": pd.to_numeric(_clean_text(row.get("BestOf")), errors="coerce"),
+                "best_of": pd.to_numeric(
+                    _clean_text(row.get("BestOf")), errors="coerce"
+                ),
                 "patch": _clean_text(row.get("Patch")),
                 "overview_page": overview_page,
                 "source": "leaguepedia_matchschedule",
@@ -120,7 +122,9 @@ def normalize_upcoming_match_rows(
     upcoming_df = pd.DataFrame(normalized_rows)
     if "best_of" in upcoming_df.columns:
         upcoming_df["best_of"] = upcoming_df["best_of"].astype("Int64")
-    return upcoming_df.sort_values(["match_time", "league", "team1", "team2"], kind="stable").reset_index(drop=True)
+    return upcoming_df.sort_values(
+        ["match_time", "league", "team1", "team2"], kind="stable"
+    ).reset_index(drop=True)
 
 
 def load_upcoming_matches(
