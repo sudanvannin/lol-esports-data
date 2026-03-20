@@ -25,8 +25,8 @@
                     <span class="site-brand-kicker">LoL Esports Data</span>
                     <span class="site-brand-title">Control Room</span>
                 </a>
-                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
-                    <div class="flex flex-wrap items-center gap-3 text-sm">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-5">
+                    <div class="flex items-center gap-2 xl:gap-3 text-sm whitespace-nowrap overflow-x-auto pb-2 lg:pb-0">
                         <a href="/upcoming" class="site-nav-link">Upcoming</a>
                         <a href="/prob-win" class="site-nav-link">Prob Win</a>
                         <a href="/team-trends" class="site-nav-link site-nav-link-accent">Team Trends</a>
@@ -34,7 +34,7 @@
                         <a href="/rankings" class="site-nav-link">Rankings</a>
                         <a href="/compare" class="site-nav-link">Compare</a>
                     </div>
-                    <form action="/search" method="get" class="flex w-full max-w-sm">
+                    <form action="/search" method="get" class="flex w-full max-w-[16rem]">
                         <span class="relative flex-1">
                             <input
                                 type="text"
@@ -107,7 +107,57 @@
         setupAutocomplete(el, el.dataset.autocomplete);
     });
 
-    function toggleSeries(btn, team1, team2, date) {
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+    }
+
+    function championInitial(name) {
+        const cleaned = String(name ?? '').trim();
+        return cleaned ? cleaned.charAt(0).toUpperCase() : '?';
+    }
+
+    function renderChampionChip(entry, tone = 'default') {
+        const name = escapeHtml(entry?.name || '-');
+        const imageUrl = entry?.image_url ? escapeHtml(entry.image_url) : '';
+        const toneClass = tone === 'ban' ? ' champion-chip-ban' : '';
+        const fallbackHidden = imageUrl ? ' hidden' : '';
+        const image = imageUrl
+            ? `<img src="${imageUrl}" alt="${name}" loading="lazy" decoding="async" class="champion-chip-avatar" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden')">`
+            : '';
+        return `<span class="champion-chip${toneClass}">${image}<span class="champion-fallback champion-chip-avatar${fallbackHidden}">${championInitial(name)}</span><span class="champion-chip-label">${name}</span></span>`;
+    }
+
+    function renderChampionInline(name, imageUrl, size = 'xs') {
+        const safeName = escapeHtml(name || '-');
+        const safeImageUrl = imageUrl ? escapeHtml(imageUrl) : '';
+        const fallbackHidden = safeImageUrl ? ' hidden' : '';
+        const image = safeImageUrl
+            ? `<img src="${safeImageUrl}" alt="${safeName}" loading="lazy" decoding="async" class="champion-inline-avatar champion-inline-avatar-${size}" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden')">`
+            : '';
+        return `<span class="champion-inline">${image}<span class="champion-fallback champion-inline-avatar champion-inline-avatar-${size}${fallbackHidden}">${championInitial(safeName)}</span><span class="font-semibold">${safeName}</span></span>`;
+    }
+
+    function renderSeriesMetric(label, value) {
+        return `<span class="series-metric-pill"><span class="series-metric-label">${escapeHtml(label)}</span><span class="series-metric-value">${escapeHtml(value)}</span></span>`;
+    }
+
+    function renderDraftSlot(entry, order, tone = 'default') {
+        const name = escapeHtml(entry?.name || '-');
+        const imageUrl = entry?.image_url ? escapeHtml(entry.image_url) : '';
+        const toneClass = tone === 'ban' ? ' draft-slot-ban' : '';
+        const fallbackHidden = imageUrl ? ' hidden' : '';
+        const image = imageUrl
+            ? `<img src="${imageUrl}" alt="${name}" loading="lazy" decoding="async" class="draft-slot-avatar" onerror="this.classList.add('hidden'); this.nextElementSibling.classList.remove('hidden')">`
+            : '';
+        return `<div class="draft-slot${toneClass}"><div class="draft-slot-order">${order}</div>${image}<span class="champion-fallback draft-slot-avatar${fallbackHidden}">${championInitial(name)}</span><div class="draft-slot-name">${name}</div></div>`;
+    }
+
+    function toggleSeries(btn, team1, team2, date, phase = '') {
         const row = btn.closest('tr');
         const existingDetail = row.nextElementSibling;
         if (existingDetail && existingDetail.classList.contains('series-detail')) {
@@ -127,66 +177,98 @@
                 const td = document.createElement('td');
                 td.colSpan = 99;
                 td.className = 'px-2 py-3 bg-slate-950';
-                td.innerHTML = renderSeriesGames(games);
+                td.innerHTML = renderSeriesGames(games, phase);
                 detailRow.appendChild(td);
                 row.after(detailRow);
             })
             .catch(() => { btn.textContent = '+'; });
     }
 
-    function renderSeriesGames(games) {
-        return games.map(g => {
+    function renderSeriesGames(games, phase = '') {
+        const seriesHeader = phase
+            ? `<div class="mb-3 flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3 text-xs uppercase tracking-[0.18em] text-slate-500"><span>Series Detail</span><span class="text-[#f0c36a]">${escapeHtml(phase)}</span></div>`
+            : '';
+
+        return seriesHeader + games.map(g => {
             const mins = Math.floor((g.length||0) / 60);
             const secs = String(Math.floor((g.length||0) % 60)).padStart(2, '0');
             const t1 = g.team1, t2 = g.team2;
             const t1c = t1.win ? 'text-emerald-400' : 'text-rose-400';
             const t2c = t2.win ? 'text-emerald-400' : 'text-rose-400';
+            const scoreLine = `${t1.kills || 0} - ${t2.kills || 0}`;
 
-            let html = `<div class="mb-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80">`;
-            html += `<div class="flex items-center justify-between px-4 py-2 bg-slate-800/60 text-xs">`;
-            html += `<span class="font-semibold">Game ${g.game || '?'}</span>`;
-            html += `<span class="text-slate-500">${mins}:${secs}</span>`;
-            html += `<span><span class="${t1c} font-semibold">${t1.name}</span> ${t1.kills||0} - ${t2.kills||0} <span class="${t2c} font-semibold">${t2.name}</span></span>`;
+            let html = `<div class="series-game-card">`;
+            html += `<div class="series-game-topbar">`;
+            html += `<div class="series-game-title-stack">`;
+            html += `<span class="series-game-kicker">Game ${g.game || '?'}</span>`;
+            html += `<span class="series-game-length">${mins}:${secs}</span>`;
+            html += `</div>`;
+            html += `<div class="series-game-scorebar">`;
+            html += `<span class="${t1c} series-game-team-name">${escapeHtml(t1.name)}</span>`;
+            html += `<span class="series-game-score">${escapeHtml(scoreLine)}</span>`;
+            html += `<span class="${t2c} series-game-team-name">${escapeHtml(t2.name)}</span>`;
+            html += `</div>`;
             html += `</div>`;
 
-            html += `<div class="grid grid-cols-2 gap-2 px-4 py-2 text-xs">`;
+            html += `<div class="series-draft-grid">`;
             [t1, t2].forEach(t => {
-                const wc = t.win ? 'border-emerald-800/40' : 'border-rose-800/40';
-                html += `<div class="border-l-2 ${wc} pl-2">`;
-                html += `<div class="mb-1 text-slate-500 uppercase">${t.name} (${t.side}) ${t.win ? '- WIN' : '- LOSS'}</div>`;
-                html += `<div class="mb-1 flex flex-wrap gap-1">`;
-                (t.picks||[]).forEach(p => { html += `<span class="rounded bg-slate-800 px-1.5 py-0.5">${p}</span>`; });
+                const panelClass = t.win ? 'series-team-panel-win' : 'series-team-panel-loss';
+                html += `<section class="series-team-panel ${panelClass}">`;
+                html += `<div class="series-team-panel-head">`;
+                html += `<div>`;
+                html += `<div class="series-team-caption">${escapeHtml(t.name)} (${escapeHtml(t.side || '?')})</div>`;
+                html += `<div class="series-team-result ${t.win ? 'series-team-result-win' : 'series-team-result-loss'}">${t.win ? 'Win' : 'Loss'}</div>`;
                 html += `</div>`;
-                html += `<div class="flex flex-wrap gap-1 text-slate-500">Bans: `;
-                (t.bans||[]).forEach(b => { html += `<span class="text-rose-400/60">${b}</span> `; });
-                html += `</div></div>`;
+                html += `<div class="series-team-metrics">`;
+                html += renderSeriesMetric('Kills', t.kills || 0);
+                html += renderSeriesMetric('Towers', t.towers || 0);
+                html += renderSeriesMetric('Dragons', t.dragons || 0);
+                html += renderSeriesMetric('Barons', t.barons || 0);
+                html += `</div>`;
+                html += `</div>`;
+                html += `<div class="series-draft-section">`;
+                html += `<div class="series-draft-label">Picks</div>`;
+                html += `<div class="draft-slot-grid">`;
+                (t.pick_cards||[]).forEach((p, index) => { html += renderDraftSlot(p, index + 1); });
+                html += `</div>`;
+                html += `</div>`;
+                html += `<div class="series-draft-section">`;
+                html += `<div class="series-draft-label">Bans</div>`;
+                html += `<div class="draft-slot-grid">`;
+                (t.ban_cards||[]).forEach((b, index) => { html += renderDraftSlot(b, index + 1, 'ban'); });
+                html += `</div>`;
+                html += `</div>`;
+                html += `</section>`;
             });
             html += `</div>`;
 
-            html += `<table class="w-full text-xs"><thead class="bg-slate-800/30 text-slate-500">`;
-            html += `<tr><th class="w-8 px-2 py-1 text-center">Pos</th><th class="px-2 py-1 text-left">Player</th><th class="px-2 py-1 text-left">Champ</th><th class="px-2 py-1 text-center">KDA</th><th class="px-2 py-1 text-center">DPM</th><th class="px-2 py-1 text-center">CS/m</th><th class="px-2 py-1 text-center">Gold</th><th class="px-2 py-1 text-center">Vis</th><th class="px-2 py-1 text-center">GD@15</th></tr>`;
+            html += `<div class="overflow-x-auto">`;
+            html += `<table class="series-detail-table">`;
+            html += `<thead>`;
+            html += `<tr><th class="w-10 px-3 py-2 text-center">Pos</th><th class="px-3 py-2 text-left">Player</th><th class="px-3 py-2 text-left">Champ</th><th class="px-3 py-2 text-center">KDA</th><th class="px-3 py-2 text-center">DPM</th><th class="px-3 py-2 text-center">CS/m</th><th class="px-3 py-2 text-center">Gold</th><th class="px-3 py-2 text-center">Vis</th><th class="px-3 py-2 text-center">GD@15</th></tr>`;
             html += `</thead><tbody>`;
 
             [t1, t2].forEach(t => {
+                html += `<tr class="series-team-divider"><td colspan="9"><span class="series-team-divider-name">${escapeHtml(t.name)}</span><span class="series-team-divider-meta">${escapeHtml(t.side || '?')} side · ${t.win ? 'Win' : 'Loss'}</span></td></tr>`;
                 (t.players||[]).forEach((p, i) => {
-                    const rc = p.win ? 'bg-emerald-900/5' : 'bg-rose-900/5';
-                    const border = i === 0 ? (t.win ? 'border-t border-emerald-800/30' : 'border-t border-rose-800/30') : '';
+                    const rc = p.win ? 'series-player-row-win' : 'series-player-row-loss';
+                    const border = i === 0 ? ' series-player-row-first' : '';
                     const gd = p.gd15 > 0 ? 'text-emerald-400' : (p.gd15 < 0 ? 'text-rose-400' : 'text-slate-400');
                     const goldK = p.gold ? (p.gold / 1000).toFixed(1) + 'k' : '-';
-                    html += `<tr class="${rc} ${border}">`;
-                    html += `<td class="px-2 py-1 text-center uppercase text-slate-500">${p.pos}</td>`;
-                    html += `<td class="px-2 py-1"><a href="/player/${p.player}" class="text-cyan-300 hover:text-cyan-200">${p.player}</a></td>`;
-                    html += `<td class="px-2 py-1 font-semibold">${p.champion||'-'}</td>`;
-                    html += `<td class="px-2 py-1 text-center">${p.k}/${p.d}/${p.a}</td>`;
-                    html += `<td class="px-2 py-1 text-center text-slate-400">${Math.round(p.dpm)||'-'}</td>`;
-                    html += `<td class="px-2 py-1 text-center text-slate-400">${p.cspm||'-'}</td>`;
-                    html += `<td class="px-2 py-1 text-center text-slate-400">${goldK}</td>`;
-                    html += `<td class="px-2 py-1 text-center text-slate-400">${Math.round(p.vision)||'-'}</td>`;
-                    html += `<td class="px-2 py-1 text-center ${gd}">${p.gd15 > 0 ? '+' : ''}${Math.round(p.gd15)||'-'}</td>`;
+                    html += `<tr class="${rc}${border}">`;
+                    html += `<td class="px-3 py-2 text-center uppercase text-slate-500">${escapeHtml(p.pos)}</td>`;
+                    html += `<td class="px-3 py-2"><a href="/player/${p.player}" class="text-cyan-300 hover:text-cyan-200 font-semibold">${escapeHtml(p.player)}</a></td>`;
+                    html += `<td class="px-3 py-2">${renderChampionInline(p.champion, p.champion_image_url)}</td>`;
+                    html += `<td class="px-3 py-2 text-center">${escapeHtml(`${p.k}/${p.d}/${p.a}`)}</td>`;
+                    html += `<td class="px-3 py-2 text-center text-slate-400">${Math.round(p.dpm)||'-'}</td>`;
+                    html += `<td class="px-3 py-2 text-center text-slate-400">${p.cspm||'-'}</td>`;
+                    html += `<td class="px-3 py-2 text-center text-slate-400">${goldK}</td>`;
+                    html += `<td class="px-3 py-2 text-center text-slate-400">${Math.round(p.vision)||'-'}</td>`;
+                    html += `<td class="px-3 py-2 text-center ${gd}">${p.gd15 > 0 ? '+' : ''}${Math.round(p.gd15)||'-'}</td>`;
                     html += `</tr>`;
                 });
             });
-            html += `</tbody></table></div>`;
+            html += `</tbody></table></div></div>`;
             return html;
         }).join('');
     }

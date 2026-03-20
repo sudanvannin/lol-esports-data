@@ -7,13 +7,14 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import db, prob_win
+from . import champion_assets, db, prob_win
 
 app = FastAPI(title="LoL Esports Stats")
 
 BASE_DIR = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+templates.env.globals["champion_image_url"] = champion_assets.get_champion_square_url
 
 
 # ----- AUTOCOMPLETE API -----
@@ -54,7 +55,7 @@ async def series_games(
     if not team1 or not team2 or not date:
         return JSONResponse([])
     games = db.get_series_games(team1, team2, date)
-    return JSONResponse(games)
+    return JSONResponse(champion_assets.enrich_series_games(games))
 
 
 # ----- HOME -----

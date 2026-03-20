@@ -6,14 +6,14 @@
 <p class="mb-6 text-sm text-slate-500">Side-by-side team and player comparison with form, openings, and game profile context.</p>
 
 <div class="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-    <div class="flex gap-2">
+    <div class="site-segmented">
         <a
             href="/compare?mode=players{% if p1 %}&p1={{ p1 }}{% endif %}{% if p2 %}&p2={{ p2 }}{% endif %}"
-            class="rounded px-4 py-2 text-sm {{ 'bg-cyan-600 text-white' if mode == 'players' else 'bg-slate-800 text-slate-400 hover:bg-slate-700' }}"
+            class="site-segmented-button {% if mode == 'players' %}site-segmented-button-active{% endif %}"
         >Players</a>
         <a
             href="/compare?mode=teams{% if p1 %}&p1={{ p1 }}{% endif %}{% if p2 %}&p2={{ p2 }}{% endif %}"
-            class="rounded px-4 py-2 text-sm {{ 'bg-amber-400 text-slate-950 font-semibold' if mode == 'teams' else 'bg-slate-800 text-slate-400 hover:bg-slate-700' }}"
+            class="site-segmented-button {% if mode == 'teams' %}site-segmented-button-active{% endif %}"
         >Teams</a>
     </div>
 
@@ -22,7 +22,7 @@
         <span class="text-xs uppercase tracking-wider text-slate-500">H2H Split:</span>
         <select
             onchange="window.location.href='/compare?mode=teams&p1={{ p1 }}&p2={{ p2 }}&split=' + this.value"
-            class="rounded border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-300 outline-none focus:border-amber-400"
+            class="site-filter-select rounded px-3 py-1.5 text-sm"
         >
             <option value="all" {% if target_split == 'all' %}selected{% endif %}>All Matches</option>
             {% for sp in h2h_by_split %}
@@ -36,7 +36,7 @@
     {% endif %}
 </div>
 
-<form action="/compare" method="get" class="mb-8 flex flex-wrap items-center gap-4">
+<form action="/compare" method="get" class="surface-card mb-8 flex flex-wrap items-center gap-4 p-4">
     <input type="hidden" name="mode" value="{{ mode }}">
     {% if target_split and target_split != 'all' %}
     <input type="hidden" name="split" value="{{ target_split }}">
@@ -48,7 +48,7 @@
             value="{{ p1 }}"
             data-autocomplete="{{ mode }}"
             placeholder="{{ 'Team 1 (e.g. T1)' if mode == 'teams' else 'Player 1 (e.g. Faker)' }}"
-            class="w-48 rounded border border-slate-700 bg-slate-800 px-4 py-2 text-slate-200 focus:border-amber-400 focus:outline-none"
+            class="site-filter-input w-48 rounded px-4 py-2"
         >
     </span>
     <span class="text-xl font-bold text-slate-500">vs</span>
@@ -59,10 +59,10 @@
             value="{{ p2 }}"
             data-autocomplete="{{ mode }}"
             placeholder="{{ 'Team 2 (e.g. Gen.G)' if mode == 'teams' else 'Player 2 (e.g. Chovy)' }}"
-            class="w-48 rounded border border-slate-700 bg-slate-800 px-4 py-2 text-slate-200 focus:border-amber-400 focus:outline-none"
+            class="site-filter-input w-48 rounded px-4 py-2"
         >
     </span>
-    <button type="submit" class="rounded bg-amber-400 px-6 py-2 font-semibold text-slate-950 hover:bg-amber-300">Compare</button>
+    <button type="submit" class="site-filter-button">Compare</button>
 </form>
 
 {% if mode == 'teams' %}
@@ -73,7 +73,7 @@
     <div class="mb-6 grid grid-cols-2 gap-4">
         {% for form, tname in [(form1, t1), (form2, t2)] %}
         <div class="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-3">
-            <a href="/team/{{ tname }}" class="mr-2 font-bold text-white hover:text-amber-300">{{ tname }}</a>
+            <a href="/team/{{ tname }}" class="mr-2 font-bold text-white hover:text-cyan-200">{{ tname }}</a>
             <span class="text-xs text-slate-500">Last {{ form|length }}:</span>
             {% for g in form %}
             <span
@@ -130,9 +130,9 @@
                 <h2 class="text-base font-semibold text-slate-200">Team Trends</h2>
                 <p class="mt-1 text-sm text-slate-500">Compare openings, pace, and high-event thresholds from each team's game profile.</p>
             </div>
-            <div class="ml-auto flex overflow-hidden rounded-full border border-slate-700 bg-slate-900">
-                <button id="btnOverall" onclick="showStats('overall')" class="bg-amber-400 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-950">Overall</button>
-                <button id="btnH2H" onclick="showStats('h2h')" class="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Head-to-Head</button>
+            <div class="site-segmented ml-auto">
+                <button id="btnOverall" onclick="showStats('overall')" class="site-segmented-button site-segmented-button-active" type="button">Overall</button>
+                <button id="btnH2H" onclick="showStats('h2h')" class="site-segmented-button" type="button">Head-to-Head</button>
             </div>
         </div>
 
@@ -143,7 +143,7 @@
                 <div class="text-left font-semibold text-indigo-300"><span class="font-normal text-slate-600">({{ gen2.games }} games)</span> {{ t2 }}</div>
             </div>
 
-            <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-amber-300">Results and openings</div>
+            <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-[#f0c36a]">Results and openings</div>
             {{ compare_row('Win Rate', gen1.winrate, gen2.winrate, suffix='%') }}
             {{ compare_row('First Blood', gen1.first_blood_pct, gen2.first_blood_pct, suffix='%') }}
             {{ compare_row('First Tower', gen1.first_tower_pct, gen2.first_tower_pct, suffix='%') }}
@@ -165,7 +165,7 @@
             {{ compare_row('2+ Baron Games', gen1.nashors_over_1_5_pct, gen2.nashors_over_1_5_pct, suffix='%') }}
         </div>
 
-        <div id="statsH2H" class="hidden overflow-hidden rounded-2xl border border-amber-300/20 bg-slate-900">
+        <div id="statsH2H" class="hidden overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
             <div class="grid grid-cols-3 bg-slate-800 px-4 py-3 text-xs uppercase text-slate-400">
                 <div class="text-right font-semibold text-cyan-300">{{ t1 }} <span class="font-normal text-slate-600">({{ bet1.games if bet1 and bet1.games else 0 }} games)</span></div>
                 <div class="text-center">Shared Match Profile</div>
@@ -173,7 +173,7 @@
             </div>
 
             {% if bet1 and bet2 and bet1.games and bet2.games %}
-            <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-amber-300">Head-to-head tendencies</div>
+            <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-[#f0c36a]">Head-to-head tendencies</div>
             {{ compare_row('Win Rate', bet1.winrate, bet2.winrate, suffix='%') }}
             {{ compare_row('First Blood', bet1.first_blood_pct, bet2.first_blood_pct, suffix='%') }}
             {{ compare_row('First Tower', bet1.first_tower_pct, bet2.first_tower_pct, suffix='%') }}
@@ -213,12 +213,11 @@
     {% if h2h_series %}
     <h2 class="mb-3 text-base font-semibold text-slate-200">Match History</h2>
     <div class="mb-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-        <table class="w-full text-sm">
+        <table class="home-table series-table w-full text-sm">
             <thead class="bg-slate-800 text-xs uppercase text-slate-400">
                 <tr>
                     <th class="px-4 py-2 text-left">Date</th>
                     <th class="px-4 py-2 text-left">League</th>
-                    <th class="px-4 py-2 text-left">Phase</th>
                     <th class="px-4 py-2 text-right">{{ t1 }}</th>
                     <th class="px-4 py-2 text-center">Score</th>
                     <th class="px-4 py-2 text-left">{{ t2 }}</th>
@@ -232,13 +231,12 @@
                     <td class="px-4 py-2">
                         <a href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}" class="text-cyan-300 hover:text-cyan-200">{{ s.league_label or s.league }}</a>
                     </td>
-                    <td class="px-4 py-2 text-xs text-slate-500">{{ s.tournament_phase or '' }}</td>
                     <td class="px-4 py-2 text-right {{ 'font-semibold text-emerald-400' if s.series_winner == s.team1 else '' }}">{{ s.team1 }}</td>
                     <td class="px-4 py-2 text-center font-mono text-slate-300">{{ s.score }}</td>
                     <td class="px-4 py-2 {{ 'font-semibold text-emerald-400' if s.series_winner == s.team2 else '' }}">{{ s.team2 }}</td>
                     <td class="px-2 py-2 text-center">
                         <button
-                            onclick="toggleSeries(this, '{{ s.team1 }}', '{{ s.team2 }}', '{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}')"
+                            onclick="toggleSeries(this, '{{ s.team1 }}', '{{ s.team2 }}', '{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}', '{{ s.tournament_phase or '' }}')"
                             class="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-500 hover:text-cyan-300"
                         >+</button>
                     </td>
@@ -260,17 +258,13 @@
             if (mode === 'h2h') {
                 overall.classList.add('hidden');
                 h2h.classList.remove('hidden');
-                btnH2H.classList.add('bg-amber-400', 'text-slate-950');
-                btnH2H.classList.remove('text-slate-400');
-                btnOverall.classList.remove('bg-amber-400', 'text-slate-950');
-                btnOverall.classList.add('text-slate-400');
+                btnH2H.classList.add('site-segmented-button-active');
+                btnOverall.classList.remove('site-segmented-button-active');
             } else {
                 h2h.classList.add('hidden');
                 overall.classList.remove('hidden');
-                btnOverall.classList.add('bg-amber-400', 'text-slate-950');
-                btnOverall.classList.remove('text-slate-400');
-                btnH2H.classList.remove('bg-amber-400', 'text-slate-950');
-                btnH2H.classList.add('text-slate-400');
+                btnOverall.classList.add('site-segmented-button-active');
+                btnH2H.classList.remove('site-segmented-button-active');
             }
         }
 
@@ -417,7 +411,7 @@
         {{ player_row('Games', c1.games, c2.games) }}
         {{ player_row('Win Rate', c1.winrate, c2.winrate, suffix='%') }}
 
-        <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-amber-300">Combat</div>
+        <div class="bg-slate-800/40 px-4 py-2 text-xs uppercase tracking-wider text-[#f0c36a]">Combat</div>
         {{ player_row('KDA', c1.kda, c2.kda) }}
         {{ player_row('Avg Kills', c1.avg_k, c2.avg_k) }}
         {{ player_row('Avg Deaths', c1.avg_d, c2.avg_d, higher_is_better=false) }}

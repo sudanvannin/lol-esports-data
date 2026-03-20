@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_champion_macros.html" import champion_inline, champion_slot %}
 {% block title %}Game Detail - LoL Esports Stats{% endblock %}
 {% block content %}
 
@@ -10,39 +11,39 @@
 <div class="text-center mb-8">
     <div class="flex items-center justify-center gap-8">
         <div class="text-right">
-            <a href="/team/{{ t1.teamname }}" class="text-2xl font-bold {% if t1.result == 1 %}text-green-400{% else %}text-gray-400{% endif %} hover:underline">{{ t1.teamname }}</a>
-            <div class="text-sm text-gray-500 uppercase">{{ t1.side }} side</div>
+            <a href="/team/{{ t1.teamname }}" class="text-2xl font-bold {% if t1.result == 1 %}text-green-400{% else %}text-slate-400{% endif %} hover:underline">{{ t1.teamname }}</a>
+            <div class="text-sm text-slate-500 uppercase">{{ t1.side }} side</div>
         </div>
-        <div class="text-3xl font-bold text-gray-600">vs</div>
+        <div class="text-3xl font-bold text-slate-600">vs</div>
         <div class="text-left">
-            <a href="/team/{{ t2.teamname }}" class="text-2xl font-bold {% if t2.result == 1 %}text-green-400{% else %}text-gray-400{% endif %} hover:underline">{{ t2.teamname }}</a>
-            <div class="text-sm text-gray-500 uppercase">{{ t2.side }} side</div>
+            <a href="/team/{{ t2.teamname }}" class="text-2xl font-bold {% if t2.result == 1 %}text-green-400{% else %}text-slate-400{% endif %} hover:underline">{{ t2.teamname }}</a>
+            <div class="text-sm text-slate-500 uppercase">{{ t2.side }} side</div>
         </div>
     </div>
-    <div class="text-sm text-gray-500 mt-2">Duration: {{ (t1.gamelength / 60)|int }}:{{ '%02d' | format((t1.gamelength % 60)|int) }} | Kills: {{ t1.teamkills|int }} - {{ t2.teamkills|int }}</div>
+    <div class="text-sm text-slate-500 mt-2">Duration: {{ (t1.gamelength / 60)|int }}:{{ '%02d' | format((t1.gamelength % 60)|int) }} | Kills: {{ t1.teamkills|int }} - {{ t2.teamkills|int }}</div>
 </div>
 
 <!-- Draft -->
 <div class="grid grid-cols-2 gap-6 mb-8">
     {% for t in [t1, t2] %}
-    <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
-        <h3 class="text-sm font-semibold text-gray-400 uppercase mb-3">{{ t.teamname }} Draft</h3>
+    <div class="surface-card p-4">
+        <h3 class="text-sm font-semibold text-slate-400 uppercase mb-3">{{ t.teamname }} Draft</h3>
         <div class="mb-3">
-            <span class="text-xs text-gray-500 uppercase">Picks:</span>
-            <div class="flex gap-2 mt-1">
+            <span class="text-xs text-slate-500 uppercase">Picks:</span>
+            <div class="draft-slot-grid mt-2">
                 {% for pick in [t.pick1, t.pick2, t.pick3, t.pick4, t.pick5] %}
                 {% if pick %}
-                <span class="bg-gray-800 px-2 py-1 rounded text-sm">{{ pick }}</span>
+                {{ champion_slot(pick, loop.index) }}
                 {% endif %}
                 {% endfor %}
             </div>
         </div>
         <div>
-            <span class="text-xs text-gray-500 uppercase">Bans:</span>
-            <div class="flex gap-2 mt-1">
+            <span class="text-xs text-slate-500 uppercase">Bans:</span>
+            <div class="draft-slot-grid mt-2">
                 {% for ban in [t.ban1, t.ban2, t.ban3, t.ban4, t.ban5] %}
                 {% if ban %}
-                <span class="bg-red-900/20 border border-red-800/30 px-2 py-1 rounded text-sm text-red-400">{{ ban }}</span>
+                {{ champion_slot(ban, loop.index, 'ban') }}
                 {% endif %}
                 {% endfor %}
             </div>
@@ -54,32 +55,32 @@
 <!-- Objectives -->
 <div class="grid grid-cols-2 gap-6 mb-8">
     {% for t in [t1, t2] %}
-    <div class="bg-gray-900 rounded-lg border border-gray-800 p-4">
-        <h3 class="text-sm font-semibold text-gray-400 uppercase mb-3">{{ t.teamname }} Objectives</h3>
+    <div class="surface-card p-4">
+        <h3 class="text-sm font-semibold text-slate-400 uppercase mb-3">{{ t.teamname }} Objectives</h3>
         <div class="grid grid-cols-3 gap-3 text-center text-sm">
             <div>
                 <div class="text-lg font-bold">{{ t.towers|int if t.towers else 0 }}</div>
-                <div class="text-xs text-gray-500">Towers</div>
+                <div class="text-xs text-slate-500">Towers</div>
             </div>
             <div>
                 <div class="text-lg font-bold">{{ t.dragons|int if t.dragons else 0 }}</div>
-                <div class="text-xs text-gray-500">Dragons</div>
+                <div class="text-xs text-slate-500">Dragons</div>
             </div>
             <div>
                 <div class="text-lg font-bold">{{ t.barons|int if t.barons else 0 }}</div>
-                <div class="text-xs text-gray-500">Barons</div>
+                <div class="text-xs text-slate-500">Barons</div>
             </div>
             <div>
                 <div class="text-lg font-bold">{{ t.heralds|int if t.heralds else 0 }}</div>
-                <div class="text-xs text-gray-500">Heralds</div>
+                <div class="text-xs text-slate-500">Heralds</div>
             </div>
             <div>
                 <div class="text-lg font-bold">{{ t.void_grubs|int if t.void_grubs else 0 }}</div>
-                <div class="text-xs text-gray-500">Grubs</div>
+                <div class="text-xs text-slate-500">Grubs</div>
             </div>
             <div>
                 <div class="text-lg font-bold">{{ t.elders|int if t.elders else 0 }}</div>
-                <div class="text-xs text-gray-500">Elders</div>
+                <div class="text-xs text-slate-500">Elders</div>
             </div>
         </div>
     </div>
@@ -95,9 +96,9 @@
         <h2 class="text-lg font-semibold mb-3 {% if team_players[0].result == 1 %}text-green-400{% else %}text-red-400{% endif %}">
             {{ team_name }} {% if team_players[0].result == 1 %}(Victory){% else %}(Defeat){% endif %}
         </h2>
-        <div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
+        <div class="surface-card overflow-hidden">
+            <table class="home-table w-full text-sm">
+                <thead>
                     <tr>
                         <th class="px-3 py-2 text-center">Pos</th>
                         <th class="px-3 py-2 text-left">Player</th>
@@ -111,21 +112,21 @@
                         <th class="px-3 py-2 text-center">GD@15</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-800">
+                <tbody>
                     {% for p in team_players %}
-                    <tr class="hover:bg-gray-800/50">
-                        <td class="px-3 py-2 text-center text-gray-500 uppercase text-xs">{{ p.position }}</td>
+                    <tr>
+                        <td class="px-3 py-2 text-center home-table-muted uppercase text-xs">{{ p.position }}</td>
                         <td class="px-3 py-2">
-                            <a href="/player/{{ p.playername }}" class="text-blue-400 hover:text-blue-300 font-semibold">{{ p.playername }}</a>
+                            <a href="/player/{{ p.playername }}" class="home-table-link">{{ p.playername }}</a>
                         </td>
-                        <td class="px-3 py-2 font-semibold">{{ p.champion }}</td>
+                        <td class="px-3 py-2">{{ champion_inline(p.champion, 'sm') }}</td>
                         <td class="px-3 py-2 text-center">{{ p.kills|int }}/{{ p.deaths|int }}/{{ p.assists|int }}</td>
-                        <td class="px-3 py-2 text-center text-gray-400">{{ p.dpm|int if p.dpm else '-' }}</td>
-                        <td class="px-3 py-2 text-center text-gray-400">{{ '%.0f' | format(p.damageshare * 100) if p.damageshare else '-' }}%</td>
-                        <td class="px-3 py-2 text-center text-gray-400">{{ '%.1f' | format(p.totalgold / 1000) if p.totalgold else '-' }}k</td>
-                        <td class="px-3 py-2 text-center text-gray-400">{{ p.cspm if p.cspm else '-' }}</td>
-                        <td class="px-3 py-2 text-center text-gray-400">{{ p.visionscore|int if p.visionscore else '-' }}</td>
-                        <td class="px-3 py-2 text-center {% if p.golddiffat15 and p.golddiffat15 > 0 %}text-green-400{% elif p.golddiffat15 and p.golddiffat15 < 0 %}text-red-400{% else %}text-gray-400{% endif %}">
+                        <td class="px-3 py-2 text-center home-table-muted">{{ p.dpm|int if p.dpm else '-' }}</td>
+                        <td class="px-3 py-2 text-center home-table-muted">{{ '%.0f' | format(p.damageshare * 100) if p.damageshare else '-' }}%</td>
+                        <td class="px-3 py-2 text-center home-table-muted">{{ '%.1f' | format(p.totalgold / 1000) if p.totalgold else '-' }}k</td>
+                        <td class="px-3 py-2 text-center home-table-muted">{{ p.cspm if p.cspm else '-' }}</td>
+                        <td class="px-3 py-2 text-center home-table-muted">{{ p.visionscore|int if p.visionscore else '-' }}</td>
+                        <td class="px-3 py-2 text-center {% if p.golddiffat15 and p.golddiffat15 > 0 %}text-green-400{% elif p.golddiffat15 and p.golddiffat15 < 0 %}text-red-400{% else %}text-slate-400{% endif %}">
                             {{ p.golddiffat15|int if p.golddiffat15 else '-' }}
                         </td>
                     </tr>

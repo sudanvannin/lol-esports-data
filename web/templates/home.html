@@ -1,175 +1,68 @@
 {% extends "base.html" %}
 {% block title %}LoL Esports Stats - Home{% endblock %}
 {% block content %}
-{% set featured_match = upcoming_matches[0] if upcoming_matches else None %}
 
-<section class="home-hero mb-8">
-    <div class="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
-        <div class="hero-panel">
-            <div class="hero-panel-glow" aria-hidden="true"></div>
-            <div class="relative z-10">
-                <div class="hero-kicker">Operational view</div>
-                <h1 class="hero-title">Track recent series, upcoming matches and league activity from one front page.</h1>
-                <p class="hero-copy">
-                    The homepage was too table-heavy and visually flat. This layout keeps the data density,
-                    but gives the latest slate, league pulse and search entry points a clear hierarchy.
-                </p>
-                <div class="mt-6 flex flex-wrap gap-3">
-                    <a href="/upcoming" class="hero-action hero-action-primary">Open upcoming board</a>
-                    <a href="/tournaments" class="hero-action hero-action-secondary">Browse tournaments</a>
-                </div>
-            </div>
-        </div>
-
-        <div class="grid gap-4 sm:grid-cols-2">
-            <div class="metric-card">
-                <div class="metric-label">Recent series</div>
-                <div class="metric-value">{{ recent_series|length }}</div>
-                <div class="metric-note">Latest completed matches on this page</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">Upcoming slots</div>
-                <div class="metric-value">{{ upcoming_matches|length }}</div>
-                <div class="metric-note">Next scheduled series in the queue</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">Active leagues</div>
-                <div class="metric-value">{{ active_leagues|length }}</div>
-                <div class="metric-note">Leagues with recent match activity</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">Schedule refresh</div>
-                <div class="metric-value metric-value-small">
-                    {% if upcoming_meta and upcoming_meta.fetched_at %}
-                    {{ upcoming_meta.fetched_at }}
-                    {% else %}
-                    Waiting
-                    {% endif %}
-                </div>
-                <div class="metric-note">Latest web schedule snapshot{% if upcoming_meta and upcoming_meta.source %} via {{ upcoming_meta.source }}{% endif %}</div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="mb-8">
-    <div class="grid gap-6 xl:grid-cols-[1.1fr_1.2fr]">
-        <div class="surface-card p-6">
-            <div class="section-label">Featured matchup</div>
-            {% if featured_match %}
-            <div class="mt-3 flex flex-col gap-5">
-                <div class="flex items-center justify-between gap-4">
-                    <div>
-                        <div class="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">{{ featured_match.league_label or featured_match.league }}</div>
-                        <div class="mt-2 text-3xl font-semibold text-white">{{ featured_match.team1 }}</div>
-                        <div class="text-sm text-slate-500">versus</div>
-                        <div class="text-3xl font-semibold text-white">{{ featured_match.team2 }}</div>
-                    </div>
-                    <div class="home-chip-stack">
-                        <span class="home-chip">{{ featured_match.event_name }}</span>
-                        <span class="home-chip">{{ featured_match.match_time.strftime('%m-%d %H:%M') if featured_match.match_time else '' }} UTC</span>
-                        <span class="home-chip">Bo{{ featured_match.best_of if featured_match.best_of else '?' }}</span>
-                        {% if featured_match.patch %}
-                        <span class="home-chip">Patch {{ featured_match.patch }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-                {% if featured_match.phase_label %}
-                <div class="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-slate-300">
-                    {{ featured_match.phase_label }}
-                </div>
-                {% endif %}
-                <div class="flex flex-wrap gap-3">
-                    <a href="/prob-win?match_id={{ featured_match.match_id | urlencode }}" class="inline-flex w-fit items-center gap-2 text-sm font-semibold text-cyan-300 hover:text-cyan-200">
-                        Open Prob Win
-                        <span aria-hidden="true">-></span>
-                    </a>
-                    <a href="/upcoming" class="inline-flex w-fit items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white">
-                        See the full slate
-                        <span aria-hidden="true">-></span>
-                    </a>
-                </div>
-            </div>
-            {% else %}
-            <div class="mt-3 rounded-2xl border border-dashed border-slate-800 bg-slate-900/50 px-4 py-5 text-sm text-slate-500">
-                No upcoming matches are available right now.
-            </div>
-            {% endif %}
-        </div>
-
-        <div class="surface-card p-6">
-            <div class="section-label">Quick access</div>
-            <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                <a href="/player/Faker" class="quick-link-card">
-                    <span class="quick-link-label">Player</span>
-                    <span class="quick-link-value">Faker</span>
-                </a>
-                <a href="/player/Chovy" class="quick-link-card">
-                    <span class="quick-link-label">Player</span>
-                    <span class="quick-link-value">Chovy</span>
-                </a>
-                <a href="/compare?p1=Faker&p2=Chovy" class="quick-link-card">
-                    <span class="quick-link-label">Comparison</span>
-                    <span class="quick-link-value">Faker vs Chovy</span>
-                </a>
-                <a href="/rankings?stat=kda&year=2025" class="quick-link-card">
-                    <span class="quick-link-label">Leaderboard</span>
-                    <span class="quick-link-value">Rankings 2025</span>
-                </a>
-                <a href="/tournament/WLDs/2025" class="quick-link-card">
-                    <span class="quick-link-label">Tournament</span>
-                    <span class="quick-link-value">Worlds 2025</span>
-                </a>
-                <a href="/tournament/MSI/2025" class="quick-link-card">
-                    <span class="quick-link-label">Tournament</span>
-                    <span class="quick-link-value">MSI 2025</span>
-                </a>
-            </div>
-        </div>
-    </div>
-</section>
-
-<div class="grid gap-6 xl:grid-cols-[1.45fr_0.9fr]">
-    <section class="surface-card overflow-hidden">
+<div class="grid gap-6 xl:grid-cols-[minmax(0,2.2fr)_minmax(18rem,0.8fr)] lg:grid-cols-[minmax(0,2fr)_minmax(17rem,1fr)]">
+    <!-- LEFTSIDE: Recent Matches -->
+    <section class="surface-card min-w-0 overflow-hidden h-fit">
         <div class="section-header">
             <div>
-                <div class="section-label">Recent matches</div>
-                <h2 class="section-title">Latest completed series</h2>
+                <div class="section-label">Completed</div>
+                <h2 class="section-title">Recent Matches</h2>
             </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="home-table min-w-[880px]">
+        <div class="min-w-0 overflow-x-auto pb-2">
+            <table class="home-table recent-matches-table w-full table-fixed">
+                <colgroup>
+                    <col style="width: 7.5rem;">
+                    <col style="width: 6.25rem;">
+                    <col>
+                    <col style="width: 4.5rem;">
+                    <col>
+                    <col style="width: 4.5rem;">
+                    <col style="width: 3rem;">
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Date</th>
                         <th>League</th>
-                        <th>Phase</th>
                         <th class="text-right">Team 1</th>
                         <th class="text-center">Score</th>
-                        <th>Team 2</th>
+                        <th class="text-left">Team 2</th>
                         <th class="text-center">Format</th>
-                        <th class="w-12 text-center"></th>
+                        <th class="home-table-control text-center"></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for s in recent_series %}
                     <tr>
-                        <td class="home-table-muted">{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}</td>
+                        <td class="home-table-muted whitespace-nowrap">{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}</td>
                         <td>
-                            <a href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}" class="home-table-link">{{ s.league_label or s.league }}</a>
+                            <a
+                                href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}"
+                                class="home-table-link block truncate"
+                                title="{{ s.league_label or s.league }}"
+                            >{{ s.league_label or s.league }}</a>
                         </td>
-                        <td class="home-table-muted text-xs">{{ s.tournament_phase or '' }}</td>
-                        <td class="text-right {% if s.series_winner == s.team1 %}home-winner{% endif %}">
-                            <a href="/team/{{ s.team1 }}" class="hover:underline">{{ s.team1 }}</a>
+                        <td class="match-team-left text-right">
+                            <a
+                                href="/team/{{ s.team1 }}"
+                                class="block truncate hover:underline {% if s.series_winner == s.team1 %}text-emerald-400 font-bold{% elif s.series_winner %}text-slate-500{% else %}text-slate-300{% endif %}"
+                                title="{{ s.team1 }}"
+                            >{{ s.team1 }}</a>
                         </td>
-                        <td class="text-center font-mono text-slate-200">{{ s.score }}</td>
-                        <td class="{% if s.series_winner == s.team2 %}home-winner{% endif %}">
-                            <a href="/team/{{ s.team2 }}" class="hover:underline">{{ s.team2 }}</a>
+                        <td class="text-center font-mono text-slate-400 font-medium">{{ s.score }}</td>
+                        <td class="match-team-right text-left">
+                            <a
+                                href="/team/{{ s.team2 }}"
+                                class="block truncate hover:underline {% if s.series_winner == s.team2 %}text-emerald-400 font-bold{% elif s.series_winner %}text-slate-500{% else %}text-slate-300{% endif %}"
+                                title="{{ s.team2 }}"
+                            >{{ s.team2 }}</a>
                         </td>
                         <td class="text-center home-table-muted text-xs">{{ s.series_format }}</td>
-                        <td class="text-center">
+                        <td class="home-table-control text-center">
                             <button
-                                onclick="toggleSeries(this, '{{ s.team1 }}', '{{ s.team2 }}', '{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}')"
+                                onclick="toggleSeries(this, '{{ s.team1 }}', '{{ s.team2 }}', '{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}', '{{ s.tournament_phase or '' }}')"
                                 class="expand-button"
                             >+</button>
                         </td>
@@ -180,29 +73,30 @@
         </div>
     </section>
 
+    <!-- RIGHTSIDE: Upcoming Matches and Active Leagues -->
     <aside class="space-y-6">
         <section class="surface-card p-5">
             <div class="flex items-center justify-between gap-4">
                 <div>
-                    <div class="section-label">Upcoming</div>
-                    <h2 class="section-title">Next matches</h2>
+                    <div class="section-label">Schedule</div>
+                    <h2 class="section-title">Upcoming Matches</h2>
                 </div>
                 <a href="/upcoming" class="text-sm font-semibold text-cyan-300 hover:text-cyan-200">View all</a>
             </div>
             <div class="mt-4 space-y-3">
                 {% if upcoming_matches %}
-                    {% for m in upcoming_matches %}
+                    {% for m in upcoming_matches[:6] %}
                     <a href="/prob-win?match_id={{ m.match_id | urlencode }}" class="upcoming-card">
                         <div class="flex items-start justify-between gap-3">
-                            <div>
+                            <div class="min-w-0 flex-1">
                                 <div class="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">{{ m.league_label or m.league }}</div>
-                                <div class="mt-1 text-sm font-semibold text-white">{{ m.team1 }} vs {{ m.team2 }}</div>
-                                <div class="mt-1 text-xs text-slate-500">{{ m.event_name }}</div>
+                                <div class="mt-1 truncate text-sm font-semibold text-white">{{ m.team1 }} vs {{ m.team2 }}</div>
+                                <div class="mt-1 truncate text-xs text-slate-500">{{ m.event_name }}</div>
                                 {% if m.phase_label %}
-                                <div class="text-xs text-slate-500">{{ m.phase_label }}</div>
+                                <div class="truncate text-xs text-slate-500">{{ m.phase_label }}</div>
                                 {% endif %}
                             </div>
-                            <div class="text-right">
+                            <div class="shrink-0 text-right">
                                 <div class="text-sm font-mono text-slate-200">{{ m.match_time.strftime('%m-%d %H:%M') if m.match_time else '' }} UTC</div>
                                 <div class="text-xs text-slate-500">Bo{{ m.best_of if m.best_of else '?' }}</div>
                                 {% if m.patch %}
@@ -213,19 +107,19 @@
                     </a>
                     {% endfor %}
                 {% else %}
-                    <p class="text-sm text-slate-500">No upcoming matches available.</p>
-                {% endif %}
-                {% if upcoming_meta and upcoming_meta.fetched_at %}
-                <div class="pt-2 text-[11px] text-slate-600">
-                    Schedule updated at {{ upcoming_meta.fetched_at }}
-                </div>
+                    <p class="text-sm text-slate-500">No upcoming matches available right now.</p>
                 {% endif %}
             </div>
+            {% if upcoming_meta and upcoming_meta.fetched_at %}
+            <div class="mt-4 text-[11px] text-slate-600">
+                Schedule updated at {{ upcoming_meta.fetched_at }}
+            </div>
+            {% endif %}
         </section>
 
         <section class="surface-card p-5">
-            <div class="section-label">League pulse</div>
-            <h2 class="section-title mt-1">Active leagues</h2>
+            <div class="section-label">Activity</div>
+            <h2 class="section-title mt-1">Active Leagues</h2>
             <div class="mt-4 space-y-3">
                 {% for l in active_leagues %}
                 <a href="/tournament/{{ l.league }}/{{ l.last_match.year if l.last_match else '' }}" class="league-card">

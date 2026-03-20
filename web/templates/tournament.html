@@ -7,9 +7,9 @@
     <div>
         <h1 class="text-3xl font-bold">{{ league }} {{ year }}</h1>
         {% if champions %}
-        <div class="mt-2 text-gray-400">
+        <div class="mt-2 text-slate-400">
             {% for c in champions %}
-            <span class="inline-block bg-yellow-900/30 border border-yellow-700/30 text-yellow-400 text-sm px-3 py-1 rounded mr-2">
+            <span class="inline-block mr-2 rounded-full border border-[#f0c36a]/25 bg-[#f0c36a]/10 px-3 py-1 text-sm text-[#f0c36a]">
                 {{ c.split or 'Champion' }}: <strong>{{ c.champion }}</strong> {{ c.final_score }} vs {{ c.runner_up }}
             </span>
             {% endfor %}
@@ -20,7 +20,7 @@
     <div class="flex gap-1">
         {% for y in available_years %}
         <a href="/tournament/{{ league }}/{{ y|int }}"
-           class="px-3 py-1 text-sm rounded {% if y|int == year %}bg-blue-600 text-white{% else %}bg-gray-800 text-gray-400 hover:bg-gray-700{% endif %}">
+           class="site-chip-link {% if y|int == year %}site-chip-link-active{% endif %}">
             {{ y|int }}
         </a>
         {% endfor %}
@@ -37,10 +37,10 @@
         </div>
         {% endif %}
         {% set ns.current_phase = r.tournament_phase %}
-        <h2 class="text-lg font-semibold text-gray-200 mt-6 mb-3">{{ ns.current_phase }}</h2>
-        <div class="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden mb-4">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-800 text-gray-400 text-xs uppercase">
+        <h2 class="text-lg font-semibold text-slate-200 mt-6 mb-3">{{ ns.current_phase }}</h2>
+        <div class="surface-card overflow-hidden mb-4">
+            <table class="home-table series-table w-full text-sm">
+                <thead>
                     <tr>
                         <th class="px-4 py-2 text-left">Date</th>
                         <th class="px-4 py-2 text-right">Team 1</th>
@@ -50,21 +50,21 @@
                         <th class="px-2 py-2 w-8"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-800">
+                <tbody>
     {% endif %}
-    <tr class="hover:bg-gray-800/50">
-        <td class="px-4 py-2 text-gray-400">{{ r.match_date.strftime('%Y-%m-%d') if r.match_date else '' }}</td>
+    <tr>
+        <td class="px-4 py-2 home-table-muted">{{ r.match_date.strftime('%Y-%m-%d') if r.match_date else '' }}</td>
         <td class="px-4 py-2 text-right {% if r.series_winner == r.team1 %}text-green-400 font-semibold{% endif %}">
             <a href="/team/{{ r.team1 }}" class="hover:underline">{{ r.team1 }}</a>
         </td>
-        <td class="px-4 py-2 text-center font-mono text-gray-300">{{ r.score }}</td>
+        <td class="px-4 py-2 text-center font-mono text-slate-300">{{ r.score }}</td>
         <td class="px-4 py-2 {% if r.series_winner == r.team2 %}text-green-400 font-semibold{% endif %}">
             <a href="/team/{{ r.team2 }}" class="hover:underline">{{ r.team2 }}</a>
         </td>
-        <td class="px-4 py-2 text-center text-gray-500 text-xs">{{ r.series_format }}</td>
+        <td class="px-4 py-2 text-center home-table-muted text-xs">{{ r.series_format }}</td>
         <td class="px-2 py-2 text-center">
-            <button onclick="toggleSeries(this, '{{ r.team1 }}', '{{ r.team2 }}', '{{ r.match_date.strftime('%Y-%m-%d') if r.match_date else '' }}')"
-                    class="text-gray-500 hover:text-blue-400 text-xs bg-gray-800 px-2 py-0.5 rounded">+</button>
+            <button onclick="toggleSeries(this, '{{ r.team1 }}', '{{ r.team2 }}', '{{ r.match_date.strftime('%Y-%m-%d') if r.match_date else '' }}', '{{ r.tournament_phase or '' }}')"
+                    class="expand-button">+</button>
         </td>
     </tr>
 {% endfor %}
