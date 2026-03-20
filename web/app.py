@@ -1,5 +1,6 @@
 """FastAPI web application for LoL Esports Stats."""
 
+from hashlib import sha1
 from pathlib import Path
 
 from fastapi import FastAPI, Query, Request
@@ -15,6 +16,19 @@ BASE_DIR = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 templates.env.globals["champion_image_url"] = champion_assets.get_champion_square_url
+
+
+def _static_url(filename: str) -> str:
+    static_path = BASE_DIR / "static" / filename
+    version = "1"
+    try:
+        version = sha1(static_path.read_bytes()).hexdigest()[:12]
+    except OSError:
+        pass
+    return f"/static/{filename}?v={version}"
+
+
+templates.env.globals["static_url"] = _static_url
 
 
 # ----- AUTOCOMPLETE API -----

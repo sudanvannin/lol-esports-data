@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="{{ static_url('style.css') }}">
     <style>
         .stat-positive { color: #4ade80; }
         .stat-negative { color: #f87171; }
@@ -157,7 +157,12 @@
         return `<div class="draft-slot${toneClass}"><div class="draft-slot-order">${order}</div>${image}<span class="champion-fallback draft-slot-avatar${fallbackHidden}">${championInitial(name)}</span><div class="draft-slot-name">${name}</div></div>`;
     }
 
-    function toggleSeries(btn, team1, team2, date, phase = '') {
+    function toggleSeries(btn) {
+        const team1 = btn.dataset.seriesTeam1 || '';
+        const team2 = btn.dataset.seriesTeam2 || '';
+        const date = btn.dataset.seriesDate || '';
+        const phase = btn.dataset.seriesPhase || '';
+
         const row = btn.closest('tr');
         const existingDetail = row.nextElementSibling;
         if (existingDetail && existingDetail.classList.contains('series-detail')) {
@@ -168,7 +173,10 @@
 
         btn.textContent = '...';
         fetch(`/api/series_games?team1=${encodeURIComponent(team1)}&team2=${encodeURIComponent(team2)}&date=${encodeURIComponent(date)}`)
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`series_games ${r.status}`);
+                return r.json();
+            })
             .then(games => {
                 if (!games.length) { btn.textContent = '+'; return; }
                 btn.textContent = '-';
@@ -181,7 +189,10 @@
                 detailRow.appendChild(td);
                 row.after(detailRow);
             })
-            .catch(() => { btn.textContent = '+'; });
+            .catch(() => {
+                btn.textContent = '+';
+                btn.title = 'Failed to load series details';
+            });
     }
 
     function renderSeriesGames(games, phase = '') {

@@ -142,3 +142,68 @@ def test_prob_win_route_renders(monkeypatch):
     assert "Bilibili Gaming vs BNK FEARX" in response.text
     assert "Fair match odds" in response.text
     assert "Total Kills" in response.text
+
+
+def test_home_route_renders_versioned_css_and_series_dataset_attrs(monkeypatch):
+    monkeypatch.setattr(
+        "web.app.db.get_recent_series",
+        lambda limit=25: pd.DataFrame(
+            [
+                {
+                    "match_date": pd.Timestamp("2026-03-16T00:00:00Z"),
+                    "league": "FST",
+                    "league_label": "First Stand",
+                    "team1": "Bilibili Gaming",
+                    "team2": "BNK FEARX",
+                    "score": "3-1",
+                    "series_winner": "Bilibili Gaming",
+                    "series_format": "Bo5",
+                    "tournament_phase": "Semifinals",
+                }
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        "web.app.db.get_active_leagues",
+        lambda: pd.DataFrame(
+            [
+                {
+                    "league": "FST",
+                    "league_label": "First Stand",
+                    "total_series": 8,
+                    "last_match": pd.Timestamp("2026-03-16T00:00:00Z"),
+                }
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        "web.app.db.get_upcoming_matches",
+        lambda limit=8: pd.DataFrame(
+            [
+                {
+                    "match_id": "fst_match_1",
+                    "match_time": pd.Timestamp("2026-03-18T13:00:00Z"),
+                    "league": "FST",
+                    "league_label": "First Stand",
+                    "event_name": "First Stand 2026",
+                    "phase_label": "Semifinals",
+                    "team1": "Bilibili Gaming",
+                    "team2": "BNK FEARX",
+                    "best_of": 5,
+                    "patch": "26.05",
+                }
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        "web.app.db.get_upcoming_matches_meta",
+        lambda: {"fetched_at": "2026-03-16T22:00:00Z"},
+    )
+
+    client = TestClient(app)
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "/static/style.css?v=" in response.text
+    assert 'data-series-team1="Bilibili Gaming"' in response.text
+    assert 'data-series-phase="Semifinals"' in response.text

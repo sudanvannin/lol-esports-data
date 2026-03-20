@@ -62,7 +62,12 @@
                         <td class="text-center home-table-muted text-xs">{{ s.series_format }}</td>
                         <td class="home-table-control text-center">
                             <button
-                                onclick="toggleSeries(this, '{{ s.team1 }}', '{{ s.team2 }}', '{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}', '{{ s.tournament_phase or '' }}')"
+                                type="button"
+                                data-series-team1="{{ s.team1 }}"
+                                data-series-team2="{{ s.team2 }}"
+                                data-series-date="{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}"
+                                data-series-phase="{{ s.tournament_phase or '' }}"
+                                onclick="toggleSeries(this)"
                                 class="expand-button"
                             >+</button>
                         </td>

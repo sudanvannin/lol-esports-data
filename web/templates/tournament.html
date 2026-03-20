@@ -63,8 +63,15 @@
         </td>
         <td class="px-4 py-2 text-center home-table-muted text-xs">{{ r.series_format }}</td>
         <td class="px-2 py-2 text-center">
-            <button onclick="toggleSeries(this, '{{ r.team1 }}', '{{ r.team2 }}', '{{ r.match_date.strftime('%Y-%m-%d') if r.match_date else '' }}', '{{ r.tournament_phase or '' }}')"
-                    class="expand-button">+</button>
+            <button
+                type="button"
+                data-series-team1="{{ r.team1 }}"
+                data-series-team2="{{ r.team2 }}"
+                data-series-date="{{ r.match_date.strftime('%Y-%m-%d') if r.match_date else '' }}"
+                data-series-phase="{{ r.tournament_phase or '' }}"
+                onclick="toggleSeries(this)"
+                class="expand-button"
+            >+</button>
         </td>
     </tr>
 {% endfor %}

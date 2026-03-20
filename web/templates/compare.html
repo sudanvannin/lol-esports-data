@@ -236,7 +236,12 @@
                     <td class="px-4 py-2 {{ 'font-semibold text-emerald-400' if s.series_winner == s.team2 else '' }}">{{ s.team2 }}</td>
                     <td class="px-2 py-2 text-center">
                         <button
-                            onclick="toggleSeries(this, '{{ s.team1 }}', '{{ s.team2 }}', '{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}', '{{ s.tournament_phase or '' }}')"
+                            type="button"
+                            data-series-team1="{{ s.team1 }}"
+                            data-series-team2="{{ s.team2 }}"
+                            data-series-date="{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}"
+                            data-series-phase="{{ s.tournament_phase or '' }}"
+                            onclick="toggleSeries(this)"
                             class="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-500 hover:text-cyan-300"
                         >+</button>
                     </td>
