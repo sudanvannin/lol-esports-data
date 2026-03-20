@@ -69,7 +69,9 @@ def _title_cased_compound(value: str) -> str:
 @lru_cache(maxsize=1)
 def get_datadragon_version() -> str:
     try:
-        with urlopen(DDRAGON_VERSIONS_URL, timeout=_REQUEST_TIMEOUT_SECONDS) as response:
+        with urlopen(
+            DDRAGON_VERSIONS_URL, timeout=_REQUEST_TIMEOUT_SECONDS
+        ) as response:
             payload = json.load(response)
     except (OSError, TimeoutError, URLError, ValueError):
         return DEFAULT_DDRAGON_VERSION
