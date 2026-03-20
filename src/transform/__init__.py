@@ -1,6 +1,12 @@
-"""Transform module for Silver layer processing."""
+"""Transformation utilities for Silver and Gold layers."""
 
-from .silver_matches import SilverMatchesTransformer
+from .gold_layer import GoldBuildResult, GoldLayerBuilder
 from .silver_games import SilverGamesTransformer
+from .silver_matches import SilverMatchesTransformer
 
-__all__ = ["SilverMatchesTransformer", "SilverGamesTransformer"]
+__all__ = [
+    "GoldBuildResult",
+    "GoldLayerBuilder",
+    "SilverGamesTransformer",
+    "SilverMatchesTransformer",
+]

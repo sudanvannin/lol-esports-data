@@ -37,7 +37,7 @@ Oracle's Elixir ──┘    (Cron Diário/Semanal)             │
 
 ---
 
-## Quick Start (Deploy do Zero ao Herói)
+## Quick Start 
 
 **Aviso:** O projeto não exige mais instalação do Docker de dezenas de containers localmente.
 
@@ -73,7 +73,7 @@ pip install -r requirements.txt
 
 # 3. Suba o site
 uvicorn web.app:app --host 127.0.0.1 --port 8000
-```
+``` 
 Acesse `http://localhost:8000`. Não é preciso ter os Parquets pesados armazenados no seu SSD! O DuckDB pegará tudo da Cloud.
 
 ---

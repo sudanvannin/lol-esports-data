@@ -6,7 +6,7 @@
     <section class="rounded-2xl border border-gray-800 bg-gradient-to-br from-gray-900 via-gray-900 to-gray-950 p-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-                <div class="text-xs uppercase tracking-[0.24em] text-blue-400">Schedule</div>
+                <div class="text-xs uppercase tracking-[0.24em] text-cyan-300">Schedule</div>
                 <h1 class="mt-2 text-3xl font-semibold text-gray-100">Upcoming Matches</h1>
                 <p class="mt-2 max-w-2xl text-sm text-gray-400">
                     Future competitive League of Legends series from the latest fast web schedule snapshot.
@@ -15,7 +15,7 @@
             <form method="get" action="/upcoming" class="flex flex-col gap-2 sm:flex-row sm:items-end">
                 <label class="text-xs text-gray-500">
                     League
-                    <select name="league" class="mt-1 w-56 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-200 focus:border-blue-500 focus:outline-none">
+                    <select name="league" class="site-filter-select mt-1 w-56 rounded-lg px-3 py-2 text-sm">
                         <option value="">All leagues</option>
                         {% for option in available_leagues %}
                         <option value="{{ option.league }}" {% if league == option.league %}selected{% endif %}>
@@ -25,11 +25,11 @@
                     </select>
                 </label>
                 <div class="flex gap-2">
-                    <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500">
+                    <button type="submit" class="site-filter-button">
                         Filter
                     </button>
                     {% if league %}
-                    <a href="/upcoming" class="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">
+                    <a href="/upcoming" class="site-filter-reset">
                         Reset
                     </a>
                     {% endif %}
@@ -67,7 +67,7 @@
                         <td class="px-4 py-3 font-mono text-gray-300">
                             {{ row.match_time.strftime('%Y-%m-%d %H:%M') if row.match_time else '' }}
                         </td>
-                        <td class="px-4 py-3 text-blue-400">{{ row.league_label or row.league }}</td>
+                        <td class="px-4 py-3 text-cyan-300">{{ row.league_label or row.league }}</td>
                         <td class="px-4 py-3 text-gray-300">{{ row.event_name }}</td>
                         <td class="px-4 py-3 text-xs text-gray-500">{{ row.phase_label or '-' }}</td>
                         <td class="px-4 py-3 text-right text-gray-100">{{ row.team1 }}</td>

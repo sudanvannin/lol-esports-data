@@ -23,6 +23,9 @@ _recent_cache_df = None
 _official_upcoming_cache_df = None
 _official_schedule_cache_meta = None
 _official_schedule_cache_mtime = None
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
+LOCAL_SILVER_DIR = DATA_DIR / "silver"
 
 LEAGUE_DISPLAY_NAMES = {
     "FST": "First Stand",
@@ -85,13 +88,80 @@ def _get_persistent_con():
             con = duckdb.connect(f"md:{db_name}?motherduck_token={token}")
         else:
             print(
-                "WARNING: MOTHERDUCK_TOKEN not found. Using local in-memory DB (data may be missing)."
+                "WARNING: MOTHERDUCK_TOKEN not found. Using local parquet fallback from data/silver."
             )
-            # Fallback to local memory if token is missing
             con = duckdb.connect(":memory:")
+            _bootstrap_local_silver_views(con)
 
         _con = con
     return _con
+
+
+def _bootstrap_local_silver_views(con):
+    """Register local silver parquet datasets as DuckDB views."""
+    view_specs = {
+        "games": (
+            f"{(LOCAL_SILVER_DIR / 'games').as_posix()}/**/*.parquet",
+            True,
+            (LOCAL_SILVER_DIR / "games").exists(),
+        ),
+        "players": (
+            f"{(LOCAL_SILVER_DIR / 'players').as_posix()}/**/*.parquet",
+            True,
+            (LOCAL_SILVER_DIR / "players").exists(),
+        ),
+        "series": (
+            (LOCAL_SILVER_DIR / "series.parquet").as_posix(),
+            False,
+            (LOCAL_SILVER_DIR / "series.parquet").exists(),
+        ),
+        "champions": (
+            (LOCAL_SILVER_DIR / "champions.parquet").as_posix(),
+            False,
+            (LOCAL_SILVER_DIR / "champions.parquet").exists(),
+        ),
+    }
+
+    for view_name, (source_path, hive_partitioning, exists) in view_specs.items():
+        if not exists:
+            continue
+        if hive_partitioning:
+            con.execute(
+                f"""
+                CREATE OR REPLACE VIEW {view_name} AS
+                SELECT * FROM read_parquet('{source_path}', hive_partitioning=1)
+                """
+            )
+        else:
+            con.execute(
+                f"""
+                CREATE OR REPLACE VIEW {view_name} AS
+                SELECT * FROM read_parquet('{source_path}')
+                """
+            )
+
+
+def _empty_upcoming_matches_df() -> pd.DataFrame:
+    return pd.DataFrame(
+        columns=[
+            "match_id",
+            "match_time",
+            "match_date",
+            "league",
+            "event_name",
+            "phase_label",
+            "team1",
+            "team2",
+            "best_of",
+            "patch",
+            "overview_page",
+            "source",
+        ]
+    )
+
+
+def _empty_upcoming_leagues_df() -> pd.DataFrame:
+    return pd.DataFrame(columns=["league", "total_matches", "next_match_time"])
 
 
 def reload_data():
@@ -132,7 +202,7 @@ def _load_local_upcoming_matches_cached():
     """Load normalized upcoming matches from the local Leaguepedia payload with mtime caching."""
     global _upcoming_cache_df, _upcoming_cache_meta, _upcoming_cache_mtime
 
-    upcoming_path = Path("data/bronze/leaguepedia/match_results.json")
+    upcoming_path = DATA_DIR / "bronze" / "leaguepedia" / "match_results.json"
     try:
         current_mtime = (
             upcoming_path.stat().st_mtime if upcoming_path.exists() else None
@@ -159,7 +229,7 @@ def _load_local_official_schedule_cached():
     global _recent_cache_df, _official_upcoming_cache_df
     global _official_schedule_cache_meta, _official_schedule_cache_mtime
 
-    schedule_path = Path("data/bronze/official/web_schedule.json")
+    schedule_path = DATA_DIR / "bronze" / "official" / "web_schedule.json"
     try:
         current_mtime = (
             schedule_path.stat().st_mtime if schedule_path.exists() else None
@@ -270,6 +340,9 @@ def get_upcoming_matches(limit: int = 20, league: str | None = None):
             .reset_index(drop=True)
         )
 
+    if not os.environ.get("MOTHERDUCK_TOKEN"):
+        return _with_league_labels(_empty_upcoming_matches_df())
+
     local_df, _ = _load_local_upcoming_matches_cached()
     if safe_league:
         local_df = local_df.loc[local_df["league"] == safe_league].copy()
@@ -319,6 +392,9 @@ def get_upcoming_match(match_id: str):
         ].head(1)
         if not match_df.empty:
             return _with_league_labels_row(match_df.iloc[0].to_dict())
+
+    if not os.environ.get("MOTHERDUCK_TOKEN"):
+        return None
 
     local_df, _ = _load_local_upcoming_matches_cached()
     match_df = local_df.loc[local_df["match_id"] == match_id].head(1)
@@ -554,6 +630,9 @@ def get_upcoming_match_leagues():
             .reset_index(drop=True)
         )
 
+    if not os.environ.get("MOTHERDUCK_TOKEN"):
+        return _with_league_labels(_empty_upcoming_leagues_df())
+
     local_df, _ = _load_local_upcoming_matches_cached()
     if local_df.empty:
         return _with_league_labels(
@@ -612,6 +691,14 @@ def get_upcoming_matches_meta():
             "lookback_days": int(official_meta.get("recent_lookback_days", 0)),
             "source_path": official_meta.get("path"),
             "source": official_meta.get("source", "riot_official_schedule"),
+        }
+
+    if not os.environ.get("MOTHERDUCK_TOKEN"):
+        return {
+            "fetched_at": None,
+            "row_count": 0,
+            "source_path": str(DATA_DIR / "bronze" / "official" / "web_schedule.json"),
+            "source": "local_official_schedule_empty",
         }
 
     _, local_meta = _load_local_upcoming_matches_cached()

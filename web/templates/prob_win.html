@@ -15,7 +15,7 @@
             <form method="get" action="/prob-win" class="flex flex-col gap-2 sm:flex-row sm:items-end">
                 <label class="text-xs text-gray-500">
                     League
-                    <select name="league" class="mt-1 w-56 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-gray-200 focus:border-cyan-500 focus:outline-none">
+                    <select name="league" class="site-filter-select mt-1 w-56 rounded-lg px-3 py-2 text-sm">
                         <option value="">All leagues</option>
                         {% for option in available_leagues %}
                         <option value="{{ option.league }}" {% if league == option.league %}selected{% endif %}>
@@ -25,11 +25,11 @@
                     </select>
                 </label>
                 <div class="flex gap-2">
-                    <button type="submit" class="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500">
+                    <button type="submit" class="site-filter-button">
                         Filter
                     </button>
                     {% if league %}
-                    <a href="/prob-win" class="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">
+                    <a href="/prob-win" class="site-filter-reset">
                         Reset
                     </a>
                     {% endif %}
@@ -64,12 +64,12 @@
                         class="block rounded-2xl border px-4 py-4 transition {% if selected_match_id == row.match_id %}border-cyan-500 bg-cyan-500/10{% else %}border-gray-800 bg-gray-950/70 hover:border-cyan-700 hover:bg-gray-950{% endif %}"
                     >
                         <div class="flex items-start justify-between gap-3">
-                            <div>
+                            <div class="min-w-0 flex-1">
                                 <div class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">{{ row.league_label or row.league }}</div>
-                                <div class="mt-2 text-sm font-semibold text-white">{{ row.team1 }} vs {{ row.team2 }}</div>
+                                <div class="mt-2 truncate text-sm font-semibold text-white">{{ row.team1 }} vs {{ row.team2 }}</div>
                                 <div class="mt-1 text-xs text-gray-500">{{ row.match_time.strftime('%m-%d %H:%M') if row.match_time else '' }} UTC</div>
                             </div>
-                            <div class="text-right text-xs text-gray-500">
+                            <div class="shrink-0 text-right text-xs text-gray-500">
                                 <div>Bo{{ row.best_of if row.best_of else '?' }}</div>
                                 {% if row.patch %}<div>Patch {{ row.patch }}</div>{% endif %}
                             </div>
@@ -77,20 +77,20 @@
 
                         {% if winner and winner.available %}
                         <div class="mt-4 space-y-2">
-                            <div class="flex items-center justify-between text-xs text-gray-400">
-                                <span>{{ winner.team1_name }}</span>
-                                <span>{{ "%.1f"|format(winner.team1_win_pct) }}%</span>
+                            <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-xs text-gray-400">
+                                <span class="truncate">{{ winner.team1_name }}</span>
+                                <span class="shrink-0">{{ "%.1f"|format(winner.team1_win_pct) }}%</span>
                             </div>
-                            <div class="h-2 overflow-hidden rounded-full bg-gray-800">
+                            <div class="h-2 w-full overflow-hidden rounded-full bg-gray-800">
                                 <div class="h-full rounded-full bg-cyan-400" style="width: {{ winner.team1_win_pct }}%"></div>
                             </div>
-                            <div class="flex items-center justify-between text-xs text-gray-400">
-                                <span>{{ winner.team2_name }}</span>
-                                <span>{{ "%.1f"|format(winner.team2_win_pct) }}%</span>
+                            <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-xs text-gray-400">
+                                <span class="truncate">{{ winner.team2_name }}</span>
+                                <span class="shrink-0">{{ "%.1f"|format(winner.team2_win_pct) }}%</span>
                             </div>
                             <div class="mt-2 flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-gray-500">
                                 <span>Favorite</span>
-                                <span class="text-cyan-300">{{ winner.favorite_name }} {{ "%.1f"|format(winner.favorite_prob_pct) }}%</span>
+                                <span class="truncate pl-3 text-right text-cyan-300">{{ winner.favorite_name }} {{ "%.1f"|format(winner.favorite_prob_pct) }}%</span>
                             </div>
                         </div>
                         {% elif winner %}
@@ -151,21 +151,21 @@
                         <h3 class="mt-2 text-xl font-semibold text-white">Fair match odds</h3>
                         <div class="mt-4 space-y-4">
                             <div>
-                                <div class="mb-1 flex items-center justify-between text-sm text-gray-300">
-                                    <span>{{ detail.winner_market.team1_name }}</span>
-                                    <span>{{ "%.1f"|format(detail.winner_market.team1_win_pct) }}%</span>
+                                <div class="mb-1 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-sm text-gray-300">
+                                    <span class="truncate">{{ detail.winner_market.team1_name }}</span>
+                                    <span class="shrink-0">{{ "%.1f"|format(detail.winner_market.team1_win_pct) }}%</span>
                                 </div>
-                                <div class="h-3 overflow-hidden rounded-full bg-gray-800">
+                                <div class="h-3 w-full overflow-hidden rounded-full bg-gray-800">
                                     <div class="h-full rounded-full bg-cyan-400" style="width: {{ detail.winner_market.team1_win_pct }}%"></div>
                                 </div>
                                 <div class="mt-1 text-xs text-gray-500">Fair odd {{ "%.2f"|format(detail.winner_market.team1_fair_odds) }}</div>
                             </div>
                             <div>
-                                <div class="mb-1 flex items-center justify-between text-sm text-gray-300">
-                                    <span>{{ detail.winner_market.team2_name }}</span>
-                                    <span>{{ "%.1f"|format(detail.winner_market.team2_win_pct) }}%</span>
+                                <div class="mb-1 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-sm text-gray-300">
+                                    <span class="truncate">{{ detail.winner_market.team2_name }}</span>
+                                    <span class="shrink-0">{{ "%.1f"|format(detail.winner_market.team2_win_pct) }}%</span>
                                 </div>
-                                <div class="h-3 overflow-hidden rounded-full bg-gray-800">
+                                <div class="h-3 w-full overflow-hidden rounded-full bg-gray-800">
                                     <div class="h-full rounded-full bg-fuchsia-400" style="width: {{ detail.winner_market.team2_win_pct }}%"></div>
                                 </div>
                                 <div class="mt-1 text-xs text-gray-500">Fair odd {{ "%.2f"|format(detail.winner_market.team2_fair_odds) }}</div>

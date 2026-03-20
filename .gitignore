@@ -32,6 +32,12 @@ ENV/
 .vscode/
 *.swp
 *.swo
+.agents/
+.codex_tmp_head/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.tmp/
 
 # Environment
 .env
@@ -48,6 +54,7 @@ data/
 # Logs
 logs/
 *.log
+uvicorn_*.txt
 airflow/logs/
 
 # Spark
@@ -65,9 +72,12 @@ minio-data/
 # OS
 .DS_Store
 Thumbs.db
+pytest-cache-files-*/
+tmp*/
 
 # Docker volumes
 volumes/
 
 # Learning docs (personal)
 docs/DECISIONS.md
+test_motherduck_counts.py

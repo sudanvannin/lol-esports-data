@@ -10,7 +10,7 @@
 <form method="get" action="/team-trends" class="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">
     <div class="flex flex-col gap-1">
         <label class="text-xs text-slate-400">League</label>
-        <select name="league" class="rounded border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-200 focus:border-amber-400 focus:outline-none">
+        <select name="league" class="site-filter-select rounded px-3 py-1.5 text-sm">
             <option value="">All Leagues</option>
             {% for l in available_leagues %}
             <option value="{{ l }}" {% if league == l %}selected{% endif %}>{{ 'LCK Academy Series' if l == 'LAS' else l }}</option>
@@ -20,7 +20,7 @@
 
     <div class="flex flex-col gap-1">
         <label class="text-xs text-slate-400">Year</label>
-        <select name="year" class="rounded border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-200 focus:border-amber-400 focus:outline-none">
+        <select name="year" class="site-filter-select rounded px-3 py-1.5 text-sm">
             <option value="">All Years</option>
             {% for y in available_years %}
             <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
@@ -30,7 +30,7 @@
 
     <div class="flex flex-col gap-1">
         <label class="text-xs text-slate-400">Split</label>
-        <select name="split" class="rounded border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-200 focus:border-amber-400 focus:outline-none">
+        <select name="split" class="site-filter-select rounded px-3 py-1.5 text-sm">
             <option value="">All Splits</option>
             {% for s in available_splits %}
             <option value="{{ s }}" {% if split == s %}selected{% endif %}>{{ s }}</option>
@@ -40,7 +40,7 @@
 
     <div class="flex flex-col gap-1">
         <label class="text-xs text-slate-400">Stage</label>
-        <select name="playoffs" class="rounded border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-200 focus:border-amber-400 focus:outline-none">
+        <select name="playoffs" class="site-filter-select rounded px-3 py-1.5 text-sm">
             <option value="" {% if playoffs is none %}selected{% endif %}>All</option>
             <option value="0" {% if playoffs == 0 %}selected{% endif %}>Regular Season</option>
             <option value="1" {% if playoffs == 1 %}selected{% endif %}>Playoffs</option>
@@ -56,13 +56,13 @@
                 value="{{ team or '' }}"
                 placeholder="Filter by team..."
                 data-autocomplete="teams"
-                class="w-44 rounded border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-200 focus:border-amber-400 focus:outline-none"
+                class="site-filter-input w-44 rounded px-3 py-1.5 text-sm"
             >
         </span>
     </div>
 
-    <button type="submit" class="rounded bg-amber-400 px-4 py-1.5 text-sm font-semibold text-slate-950 hover:bg-amber-300">Apply</button>
-    <a href="/team-trends" class="py-1.5 text-sm text-slate-500 hover:text-slate-300">Reset</a>
+    <button type="submit" class="site-filter-button">Apply</button>
+    <a href="/team-trends" class="site-filter-reset">Reset</a>
 </form>
 
 {% if not rows %}
