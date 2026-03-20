@@ -80,3 +80,34 @@ def test_upcoming_matches_meta_skip_slow_leaguepedia_fallback_without_token(
 
     assert meta["row_count"] == 0
     assert meta["source"] == "local_official_schedule_empty"
+
+
+def test_recent_series_prefers_series_table_when_available(monkeypatch):
+    class DummyCon:
+        def execute(self, sql):
+            raise AssertionError("web_recent_matches_live should not be queried first")
+
+    monkeypatch.setattr(db, "_get_persistent_con", lambda: DummyCon())
+    monkeypatch.setattr(
+        db,
+        "query_df",
+        lambda sql, params=None: pd.DataFrame(
+            [
+                {
+                    "match_date": pd.Timestamp("2026-03-16"),
+                    "league": "FST",
+                    "team1": "Bilibili Gaming",
+                    "team2": "BNK FEARX",
+                    "score": "3-1",
+                    "series_winner": "Bilibili Gaming",
+                    "series_format": "Bo5",
+                    "tournament_phase": "Semifinals",
+                }
+            ]
+        ),
+    )
+
+    recent = db.get_recent_series(limit=5)
+
+    assert len(recent) == 1
+    assert recent.iloc[0]["team1"] == "Bilibili Gaming"

@@ -716,6 +716,22 @@ def get_upcoming_matches_meta():
 
 
 def get_recent_series(limit: int = 20):
+    # Prefer the curated series table because the expandable match detail depends on
+    # the corresponding games/players rows existing in the same dataset.
+    series_df = _with_league_labels(
+        query_df(
+            f"""
+            SELECT match_date, league, team1, team2, score, series_winner,
+                   series_format, tournament_phase
+            FROM series
+            ORDER BY match_date DESC
+            LIMIT {limit}
+        """
+        )
+    )
+    if series_df is not None and not series_df.empty:
+        return series_df
+
     con = _get_persistent_con()
     try:
         remote_df = con.execute(
@@ -764,17 +780,7 @@ def get_recent_series(limit: int = 20):
             .reset_index(drop=True)
         )
 
-    return _with_league_labels(
-        query_df(
-            f"""
-            SELECT match_date, league, team1, team2, score, series_winner,
-                   series_format, tournament_phase
-            FROM series
-            ORDER BY match_date DESC
-            LIMIT {limit}
-        """
-        )
-    )
+    return series_df
 
 
 def get_active_leagues():
