@@ -38,6 +38,7 @@ ENV/
 .ruff_cache/
 .pytest_cache/
 .tmp/
+.tmp_pytest/
 
 # Environment
 .env
