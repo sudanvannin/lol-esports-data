@@ -111,3 +111,38 @@ def test_recent_series_prefers_series_table_when_available(monkeypatch):
 
     assert len(recent) == 1
     assert recent.iloc[0]["team1"] == "Bilibili Gaming"
+
+
+def test_home_recent_series_prefers_live_table_when_available(monkeypatch):
+    class DummyResult:
+        def fetchdf(self):
+            return pd.DataFrame(
+                [
+                    {
+                        "match_date": pd.Timestamp("2026-03-17T00:00:00Z"),
+                        "league": "FST",
+                        "team1": "Hanwha Life Esports",
+                        "team2": "CTBC Flying Oyster",
+                        "score": "2-1",
+                        "series_winner": "Hanwha Life Esports",
+                        "series_format": "Bo3",
+                        "tournament_phase": "Finals",
+                    }
+                ]
+            )
+
+    class DummyCon:
+        def execute(self, sql):
+            assert "web_recent_matches_live" in sql
+            return DummyResult()
+
+    monkeypatch.setattr(db, "_get_persistent_con", lambda: DummyCon())
+    monkeypatch.setattr(
+        "web.db._load_local_official_schedule_cached",
+        lambda: (_ for _ in ()).throw(AssertionError("local fallback should not run")),
+    )
+
+    recent = db.get_home_recent_series(limit=5)
+
+    assert len(recent) == 1
+    assert recent.iloc[0]["team1"] == "Hanwha Life Esports"

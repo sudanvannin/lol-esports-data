@@ -2,84 +2,202 @@
 {% block title %}LoL Esports Stats - Home{% endblock %}
 {% block content %}
 
-<div class="grid gap-6 xl:grid-cols-[minmax(0,2.2fr)_minmax(18rem,0.8fr)] lg:grid-cols-[minmax(0,2fr)_minmax(17rem,1fr)]">
-    <!-- LEFTSIDE: Recent Matches -->
-    <section class="surface-card min-w-0 overflow-hidden h-fit">
-        <div class="section-header">
-            <div>
-                <div class="section-label">Completed</div>
-                <h2 class="section-title">Recent Matches</h2>
-            </div>
-        </div>
-        <div class="min-w-0 overflow-x-auto pb-2">
-            <table class="home-table recent-matches-table w-full table-fixed">
-                <colgroup>
-                    <col style="width: 7.5rem;">
-                    <col style="width: 6.25rem;">
-                    <col>
-                    <col style="width: 4.5rem;">
-                    <col>
-                    <col style="width: 4.5rem;">
-                    <col style="width: 3rem;">
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>League</th>
-                        <th class="text-right">Team 1</th>
-                        <th class="text-center">Score</th>
-                        <th class="text-left">Team 2</th>
-                        <th class="text-center">Format</th>
-                        <th class="home-table-control text-center"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for s in recent_series %}
-                    <tr>
-                        <td class="home-table-muted whitespace-nowrap">{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}</td>
-                        <td>
-                            <a
-                                href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}"
-                                class="home-table-link block truncate"
-                                title="{{ s.league_label or s.league }}"
-                            >{{ s.league_label or s.league }}</a>
-                        </td>
-                        <td class="match-team-left text-right">
-                            <a
-                                href="/team/{{ s.team1 }}"
-                                class="block truncate hover:underline {% if s.series_winner == s.team1 %}text-emerald-400 font-bold{% elif s.series_winner %}text-slate-500{% else %}text-slate-300{% endif %}"
-                                title="{{ s.team1 }}"
-                            >{{ s.team1 }}</a>
-                        </td>
-                        <td class="text-center font-mono text-slate-400 font-medium">{{ s.score }}</td>
-                        <td class="match-team-right text-left">
-                            <a
-                                href="/team/{{ s.team2 }}"
-                                class="block truncate hover:underline {% if s.series_winner == s.team2 %}text-emerald-400 font-bold{% elif s.series_winner %}text-slate-500{% else %}text-slate-300{% endif %}"
-                                title="{{ s.team2 }}"
-                            >{{ s.team2 }}</a>
-                        </td>
-                        <td class="text-center home-table-muted text-xs">{{ s.series_format }}</td>
-                        <td class="home-table-control text-center">
-                            <button
-                                type="button"
-                                data-series-team1="{{ s.team1 }}"
-                                data-series-team2="{{ s.team2 }}"
-                                data-series-date="{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}"
-                                data-series-phase="{{ s.tournament_phase or '' }}"
-                                onclick="toggleSeries(this)"
-                                class="expand-button"
-                            >+</button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </section>
+<section class="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+    <div class="metric-card">
+        <div class="metric-note">Series · 7d</div>
+        <div class="metric-value">{{ analytics_summary.completed_series_7d }}</div>
+        <div class="mt-2 text-xs text-slate-500">{{ analytics_summary.completed_series_30d }} completed in 30 days</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-note">Games · 30d</div>
+        <div class="metric-value">{{ analytics_summary.tracked_games_30d }}</div>
+        <div class="mt-2 text-xs text-slate-500">{{ analytics_summary.tracked_teams_90d }} teams tracked</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-note">Active Leagues</div>
+        <div class="metric-value">{{ analytics_summary.active_leagues_30d }}</div>
+        <div class="mt-2 text-xs text-slate-500">Competitive footprint in the last month</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-note">Upcoming</div>
+        <div class="metric-value">{{ analytics_summary.upcoming_matches }}</div>
+        <div class="mt-2 text-xs text-slate-500">Scheduled matches currently indexed</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-note">Avg Game Time</div>
+        <div class="metric-value">{{ analytics_summary.avg_game_minutes_30d }}</div>
+        <div class="mt-2 text-xs text-slate-500">Minutes per game over the last 30 days</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-note">Avg Total Kills</div>
+        <div class="metric-value">{{ analytics_summary.avg_total_kills_30d }}</div>
+        <div class="mt-2 text-xs text-slate-500">{{ analytics_summary.recommended_edges }} current recommended edges</div>
+    </div>
+</section>
 
-    <!-- RIGHTSIDE: Upcoming Matches and Active Leagues -->
+<div class="grid gap-6 xl:grid-cols-[minmax(0,2.15fr)_minmax(19rem,0.85fr)] lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
+    <div class="space-y-6">
+        <section class="surface-card overflow-hidden">
+            <div class="section-header">
+                <div>
+                    <div class="section-label">Analytics</div>
+                    <h2 class="section-title">Power Rankings</h2>
+                </div>
+                <div class="text-xs text-slate-500">45-day form, control and recent trend</div>
+            </div>
+            <div class="overflow-x-auto">
+                {% if power_rankings %}
+                <table class="home-table w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="px-3 py-2 text-center">#</th>
+                            <th class="px-3 py-2 text-left">Team</th>
+                            <th class="px-3 py-2 text-left">League</th>
+                            <th class="px-3 py-2 text-center">Score</th>
+                            <th class="px-3 py-2 text-center">WR</th>
+                            <th class="px-3 py-2 text-center">Last 5</th>
+                            <th class="px-3 py-2 text-center">KD Diff</th>
+                            <th class="px-3 py-2 text-center">Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in power_rankings %}
+                        <tr>
+                            <td class="px-3 py-2 text-center font-mono text-slate-500">{{ r.rank }}</td>
+                            <td class="px-3 py-2">
+                                <a href="/team/{{ r.teamname }}" class="font-semibold text-cyan-300 hover:text-cyan-200">{{ r.teamname }}</a>
+                            </td>
+                            <td class="px-3 py-2 text-slate-400">{{ r.league_label or r.league }}</td>
+                            <td class="px-3 py-2 text-center font-semibold text-white">{{ r.power_score }}</td>
+                            <td class="px-3 py-2 text-center {{ 'text-emerald-400' if r.winrate >= 55 else ('text-rose-400' if r.winrate < 45 else 'text-slate-300') }}">{{ r.winrate }}%</td>
+                            <td class="px-3 py-2 text-center text-slate-300">{{ r.last5_wins }}-{{ r.last5_games - r.last5_wins }}</td>
+                            <td class="px-3 py-2 text-center {{ 'text-emerald-400' if r.avg_kill_diff > 0 else ('text-rose-400' if r.avg_kill_diff < 0 else 'text-slate-400') }}">{{ r.avg_kill_diff }}</td>
+                            <td class="px-3 py-2 text-center">
+                                <span class="rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-[0.14em] {{ 'border-emerald-700 bg-emerald-500/10 text-emerald-300' if r.trend_label == 'Surging' else ('border-rose-700 bg-rose-500/10 text-rose-300' if r.trend_label == 'Cooling' else 'border-slate-700 bg-slate-800 text-slate-300') }}">
+                                    {{ r.trend_label }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="p-5 text-sm text-slate-500">Power rankings will appear once enough recent games are available.</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="surface-card min-w-0 overflow-hidden h-fit">
+            <div class="section-header">
+                <div>
+                    <div class="section-label">Completed</div>
+                    <h2 class="section-title">Recent Matches</h2>
+                </div>
+                <div class="text-xs text-slate-500">Live-first feed for fresh results, with series detail fallback</div>
+            </div>
+            <div class="min-w-0 overflow-x-auto pb-2">
+                <table class="home-table recent-matches-table w-full table-fixed">
+                    <colgroup>
+                        <col style="width: 7.5rem;">
+                        <col style="width: 6.25rem;">
+                        <col>
+                        <col style="width: 4.5rem;">
+                        <col>
+                        <col style="width: 4.5rem;">
+                        <col style="width: 3rem;">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>League</th>
+                            <th class="text-right">Team 1</th>
+                            <th class="text-center">Score</th>
+                            <th class="text-left">Team 2</th>
+                            <th class="text-center">Format</th>
+                            <th class="home-table-control text-center"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in recent_series %}
+                        <tr>
+                            <td class="home-table-muted whitespace-nowrap">{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}</td>
+                            <td>
+                                <a
+                                    href="/tournament/{{ s.league }}/{{ s.match_date.year if s.match_date else '' }}"
+                                    class="home-table-link block truncate"
+                                    title="{{ s.league_label or s.league }}"
+                                >{{ s.league_label or s.league }}</a>
+                            </td>
+                            <td class="match-team-left text-right">
+                                <a
+                                    href="/team/{{ s.team1 }}"
+                                    class="block truncate hover:underline {% if s.series_winner == s.team1 %}text-emerald-400 font-bold{% elif s.series_winner %}text-slate-500{% else %}text-slate-300{% endif %}"
+                                    title="{{ s.team1 }}"
+                                >{{ s.team1 }}</a>
+                            </td>
+                            <td class="text-center font-mono text-slate-400 font-medium">{{ s.score }}</td>
+                            <td class="match-team-right text-left">
+                                <a
+                                    href="/team/{{ s.team2 }}"
+                                    class="block truncate hover:underline {% if s.series_winner == s.team2 %}text-emerald-400 font-bold{% elif s.series_winner %}text-slate-500{% else %}text-slate-300{% endif %}"
+                                    title="{{ s.team2 }}"
+                                >{{ s.team2 }}</a>
+                            </td>
+                            <td class="text-center home-table-muted text-xs">{{ s.series_format }}</td>
+                            <td class="home-table-control text-center">
+                                <button
+                                    type="button"
+                                    data-series-team1="{{ s.team1 }}"
+                                    data-series-team2="{{ s.team2 }}"
+                                    data-series-date="{{ s.match_date.strftime('%Y-%m-%d') if s.match_date else '' }}"
+                                    data-series-phase="{{ s.tournament_phase or '' }}"
+                                    onclick="toggleSeries(this)"
+                                    class="expand-button"
+                                >+</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
     <aside class="space-y-6">
+        <section class="surface-card p-5">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <div class="section-label">Model</div>
+                    <h2 class="section-title">Model Spotlight</h2>
+                </div>
+                <a href="/prob-win" class="text-sm font-semibold text-cyan-300 hover:text-cyan-200">Prob Win</a>
+            </div>
+            <div class="mt-4 space-y-3">
+                {% if model_watchlist %}
+                    {% for m in model_watchlist %}
+                    <a href="/prob-win?match_id={{ m.match_id | urlencode }}" class="upcoming-card">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                <div class="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">{{ m.angle_label }}</div>
+                                <div class="mt-1 truncate text-sm font-semibold text-white">{{ m.team1 }} vs {{ m.team2 }}</div>
+                                <div class="mt-1 truncate text-xs text-slate-500">{{ m.league_label or m.league }}</div>
+                                <div class="mt-1 text-xs text-slate-400">{{ m.favorite_name }} {{ m.favorite_prob_pct }}% · gap {{ m.confidence_gap_pct }}pp</div>
+                            </div>
+                            <div class="shrink-0 text-right text-xs text-slate-500">
+                                <div>{{ m.match_time.strftime('%m-%d %H:%M') if m.match_time else '' }} UTC</div>
+                                <div class="mt-1 text-slate-300">
+                                    Fair {{ m.team1_fair_odds if m.favorite_name == m.team1 else m.team2_fair_odds }}
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-sm text-slate-500">No scored winner markets are available right now.</p>
+                {% endif %}
+            </div>
+        </section>
+
         <section class="surface-card p-5">
             <div class="flex items-center justify-between gap-4">
                 <div>
@@ -120,6 +238,58 @@
                 Schedule updated at {{ upcoming_meta.fetched_at }}
             </div>
             {% endif %}
+        </section>
+
+        <section class="surface-card p-5">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <div class="section-label">Markets</div>
+                    <h2 class="section-title">Edge Highlights</h2>
+                </div>
+                <a href="/edge-board" class="text-sm font-semibold text-cyan-300 hover:text-cyan-200">Edge Board</a>
+            </div>
+            <div class="mt-4 space-y-3">
+                {% if edge_highlights %}
+                    {% for e in edge_highlights %}
+                    <a href="/edge-board" class="league-card">
+                        <div class="min-w-0">
+                            <div class="truncate font-semibold text-cyan-300">{{ e.team1_name }} vs {{ e.team2_name }}</div>
+                            <div class="mt-1 truncate text-xs text-slate-500">{{ e.league_code_label or e.league_code }} · {{ e.bookmaker }}</div>
+                            <div class="mt-1 truncate text-xs text-slate-400">{{ e.recommended_selection }} @ {{ e.recommended_odds }}</div>
+                        </div>
+                        <div class="shrink-0 text-right">
+                            <div class="text-sm font-semibold text-emerald-300">{{ e.recommended_ev_pct }}% EV</div>
+                            <div class="text-xs text-slate-500">{{ e.recommended_edge_pct }}% edge</div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-sm text-slate-500">No recommended betting edges are available right now.</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="surface-card p-5">
+            <div class="section-label">League Tempo</div>
+            <h2 class="section-title mt-1">Pace Watch</h2>
+            <div class="mt-4 space-y-3">
+                {% if league_trends %}
+                    {% for l in league_trends %}
+                    <a href="/tournaments" class="league-card">
+                        <div>
+                            <div class="font-semibold text-cyan-300">{{ l.league_label or l.league }}</div>
+                            <div class="text-xs text-slate-500">{{ l.games }} games · {{ l.teams }} teams</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-slate-300">{{ l.avg_total_kills }} kills · {{ l.avg_game_minutes }}m</div>
+                            <div class="text-[11px] text-slate-500">{{ l.tempo_label }}</div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-sm text-slate-500">League pace snapshots will appear once enough recent games are available.</p>
+                {% endif %}
+            </div>
         </section>
 
         <section class="surface-card p-5">

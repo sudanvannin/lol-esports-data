@@ -204,6 +204,140 @@
                     </div>
                 </div>
 
+                {% set explain = detail.explainability %}
+                <div class="rounded-2xl border border-gray-800 bg-gray-950/70 p-5">
+                    <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                        <div class="max-w-3xl">
+                            <div class="text-xs uppercase tracking-[0.18em] text-gray-500">Explainability</div>
+                            <h3 class="mt-2 text-xl font-semibold text-white">
+                                {% if explain and explain.available %}
+                                Why the model leans {{ explain.favorite_name }}
+                                {% else %}
+                                Model read unavailable
+                                {% endif %}
+                            </h3>
+                            <p class="mt-2 text-sm leading-6 text-gray-400">
+                                {% if explain and explain.available %}
+                                {{ explain.summary }}
+                                {% else %}
+                                {{ explain.error if explain else "The model rationale is not available for this matchup." }}
+                                {% endif %}
+                            </p>
+                        </div>
+
+                        {% if explain and explain.available %}
+                        <div class="grid gap-3 sm:grid-cols-3 xl:min-w-[420px]">
+                            <div class="rounded-xl border border-gray-800 bg-gray-900/80 p-3">
+                                <div class="text-xs uppercase tracking-[0.14em] text-gray-500">Favorite</div>
+                                <div class="mt-2 text-base font-semibold text-white">{{ explain.favorite_name }}</div>
+                                <div class="mt-1 text-sm text-cyan-300">{{ "%.1f"|format(explain.favorite_prob_pct) }}% win probability</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-800 bg-gray-900/80 p-3">
+                                <div class="text-xs uppercase tracking-[0.14em] text-gray-500">Confidence</div>
+                                <div class="mt-2 text-base font-semibold text-white">{{ explain.confidence_label }}</div>
+                                <div class="mt-1 text-sm text-gray-400">{{ explain.confidence_note }}</div>
+                            </div>
+                            <div class="rounded-xl border border-gray-800 bg-gray-900/80 p-3">
+                                <div class="text-xs uppercase tracking-[0.14em] text-gray-500">Gap</div>
+                                <div class="mt-2 text-base font-semibold text-white">{{ "%.1f"|format(explain.confidence_gap_pct) }} pp</div>
+                                <div class="mt-1 text-sm text-gray-400">Spread between the two win probabilities.</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if explain and explain.available %}
+                        {% if explain.warnings %}
+                        <div class="mt-4 rounded-2xl border border-amber-800/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                            <div class="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">Model caveats</div>
+                            <ul class="space-y-1">
+                                {% for warning in explain.warnings %}
+                                <li>{{ warning }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <div class="mt-5">
+                            <div class="text-xs uppercase tracking-[0.18em] text-gray-500">Key signals</div>
+                            {% if explain.signals %}
+                            <div class="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                {% for signal in explain.signals %}
+                                <div class="rounded-xl border border-gray-800 bg-gray-900/80 p-4">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div class="text-sm font-semibold text-white">{{ signal.title }}</div>
+                                        <span class="rounded-full border border-gray-700 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-gray-400">{{ signal.strength_label }}</span>
+                                    </div>
+                                    <div class="mt-3 text-2xl font-semibold text-cyan-300">{{ signal.value_text }}</div>
+                                    <div class="mt-2 text-sm text-gray-300">{{ signal.favored_name }} has the edge here.</div>
+                                    <p class="mt-2 text-sm leading-6 text-gray-500">{{ signal.note }}</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="mt-3 text-sm text-gray-400">No stable feature-level signals are available for this matchup.</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+                            <div class="rounded-xl border border-gray-800 bg-gray-900/80 p-4">
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <div class="text-xs uppercase tracking-[0.18em] text-gray-500">Ensemble alignment</div>
+                                        <h4 class="mt-2 text-lg font-semibold text-white">{{ explain.model_agreement.label }}</h4>
+                                    </div>
+                                    <div class="text-right text-sm text-gray-400">
+                                        <div>Calibration {{ explain.model_agreement.calibration_method }}</div>
+                                        <div>
+                                            {% if explain.model_agreement.disagreement_pct is not none %}
+                                            Disagreement {{ "%.1f"|format(explain.model_agreement.disagreement_pct) }}%
+                                            {% else %}
+                                            Disagreement single model
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="mt-3 text-sm leading-6 text-gray-400">{{ explain.model_agreement.note }}</p>
+
+                                {% if explain.model_agreement.models %}
+                                <div class="mt-4 overflow-x-auto">
+                                    <table class="w-full min-w-[320px] text-sm">
+                                        <thead class="text-xs uppercase tracking-[0.14em] text-gray-500">
+                                            <tr class="border-b border-gray-800">
+                                                <th class="px-3 py-3 text-left">Model</th>
+                                                <th class="px-3 py-3 text-right">Team 1 win %</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-800">
+                                            {% for model in explain.model_agreement.models %}
+                                            <tr>
+                                                <td class="px-3 py-3 text-gray-300">{{ model.model_name }}</td>
+                                                <td class="px-3 py-3 text-right text-white">{{ "%.1f"|format(model.team1_win_pct) }}%</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="rounded-xl border border-gray-800 bg-gray-900/80 p-4">
+                                <div class="text-xs uppercase tracking-[0.18em] text-gray-500">Sample coverage</div>
+                                <h4 class="mt-2 text-lg font-semibold text-white">How much history is behind the read</h4>
+                                <div class="mt-4 space-y-3">
+                                    {% for sample in explain.sample_context %}
+                                    <div class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl border border-gray-800 bg-gray-950/60 px-3 py-3 text-sm">
+                                        <div class="text-gray-300">{{ sample.label }}</div>
+                                        <div class="text-right text-cyan-300">{{ detail.match.team1 }} {{ sample.team1_value }}</div>
+                                        <div class="text-right text-fuchsia-300">{{ detail.match.team2 }} {{ sample.team2_value }}</div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
                 <div class="rounded-2xl border border-gray-800 bg-gray-950/70 p-5">
                     <div class="flex items-center justify-between gap-3">
                         <div>

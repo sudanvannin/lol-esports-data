@@ -3,21 +3,55 @@
 {% block title %}{{ info.playername }} - LoL Esports Stats{% endblock %}
 {% block content %}
 
-<section class="surface-card p-6 mb-6">
-    <div class="section-label">Player</div>
-    <h1 class="section-title mt-2">{{ info.playername }}</h1>
-    <div class="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-400">
-        <a href="/team/{{ info.teamname }}" class="home-table-link">{{ info.teamname }}</a>
-        <span class="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-            {{ info.position }}
-        </span>
-        <span>{{ info.league_label or info.league }}</span>
-    </div>
-</section>
+{% macro profile_card(label, value, suffix='', tone='text-white', note='') %}
+<div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+    <div class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ label }}</div>
+    <div class="mt-2 text-2xl font-semibold {{ tone }}">{{ value }}{{ suffix }}</div>
+    {% if note %}
+    <p class="mt-2 text-sm leading-6 text-slate-500">{{ note }}</p>
+    {% endif %}
+</div>
+{% endmacro %}
 
-<section class="surface-card p-4 mb-4">
+<div class="mb-8 flex flex-wrap items-start justify-between gap-4">
+    <div>
+        <div class="flex flex-wrap items-center gap-3">
+            <h1 class="text-3xl font-bold text-white">{{ info.playername }}</h1>
+            {% if analytics and analytics.available %}
+            <span class="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] {{ 'border-emerald-700 bg-emerald-500/10 text-emerald-300' if analytics.trend_label == 'Heating up' else ('border-rose-700 bg-rose-500/10 text-rose-300' if analytics.trend_label == 'Cooling off' else 'border-slate-700 bg-slate-800 text-slate-300') }}">
+                {{ analytics.trend_label }}
+            </span>
+            {% endif %}
+        </div>
+        <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-400">
+            <a href="/team/{{ info.teamname }}" class="home-table-link">{{ info.teamname }}</a>
+            <span class="rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                {{ info.position }}
+            </span>
+            <span>{{ info.league_label or info.league }}</span>
+            {% if analytics and analytics.available %}
+            <span>{{ analytics.games }} games in this slice</span>
+            {% endif %}
+        </div>
+    </div>
+    {% if recent_games %}
+    <div class="flex items-center gap-1.5">
+        <span class="mr-1 text-xs text-slate-500">Last {{ [recent_games|length, 10]|min }}:</span>
+        {% for g in recent_games[:10] %}
+        <span
+            class="flex h-7 w-7 items-center justify-center rounded-full border text-xs font-bold {{ 'border-emerald-700 bg-emerald-500/20 text-emerald-300' if g.result == 1 else 'border-rose-700 bg-rose-500/20 text-rose-300' }}"
+            title="{{ g.game_date }} vs {{ g.champion or '?' }}"
+        >
+            {{ 'W' if g.result == 1 else 'L' }}
+        </span>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<section class="mb-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
     <div class="flex flex-wrap items-center gap-2">
-        <span class="section-label">Filter</span>
+        <span class="text-xs uppercase tracking-[0.18em] text-slate-500">Filter</span>
         <a href="/player/{{ info.playername }}"
            class="site-chip-link {% if not filter_year and not filter_split %}site-chip-link-active{% endif %}">
             All Time
@@ -54,8 +88,71 @@
 </div>
 {% endif %}
 
-{% if career %}
-<div class="grid grid-cols-2 gap-3 mb-8 sm:grid-cols-4 lg:grid-cols-6">
+{% if analytics and analytics.available %}
+<section class="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+    <div class="metric-card text-center">
+        <div class="metric-value">{{ analytics.games }}</div>
+        <div class="metric-note">Games</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value {% if analytics.winrate >= 55 %}text-emerald-400{% elif analytics.winrate < 45 %}text-rose-400{% endif %}">{{ analytics.winrate }}%</div>
+        <div class="metric-note">Slice Win Rate</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value {% if analytics.recent_winrate >= 55 %}text-emerald-400{% elif analytics.recent_winrate < 45 %}text-rose-400{% endif %}">{{ analytics.recent_winrate }}%</div>
+        <div class="metric-note">Recent Win Rate</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value {% if analytics.winrate_delta > 0 %}text-emerald-400{% elif analytics.winrate_delta < 0 %}text-rose-400{% endif %}">{{ analytics.winrate_delta }}</div>
+        <div class="metric-note">Win Rate Delta</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value">{{ analytics.impact_index }}</div>
+        <div class="metric-note">Impact Index</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value">{{ analytics.avg_dpm|int }}</div>
+        <div class="metric-note">Avg DPM</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value {% if analytics.avg_gd15 > 0 %}text-emerald-400{% elif analytics.avg_gd15 < 0 %}text-rose-400{% endif %}">{{ analytics.avg_gd15|int }}</div>
+        <div class="metric-note">Avg GD@15</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value">{{ analytics.avg_damage_share_pct }}%</div>
+        <div class="metric-note">Damage Share</div>
+    </div>
+</section>
+
+<section class="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-5">
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="text-xs uppercase tracking-[0.18em] text-cyan-300">Trend</div>
+        <div class="mt-2 text-lg font-semibold text-white">{{ analytics.trend_label }}</div>
+        <p class="mt-2 text-sm text-slate-500">{{ analytics.trend_note }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="text-xs uppercase tracking-[0.18em] text-cyan-300">Lane</div>
+        <div class="mt-2 text-lg font-semibold text-white">{{ analytics.lane_label }}</div>
+        <p class="mt-2 text-sm text-slate-500">{{ analytics.lane_note }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="text-xs uppercase tracking-[0.18em] text-cyan-300">Role</div>
+        <div class="mt-2 text-lg font-semibold text-white">{{ analytics.role_label }}</div>
+        <p class="mt-2 text-sm text-slate-500">{{ analytics.role_note }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="text-xs uppercase tracking-[0.18em] text-cyan-300">Setup</div>
+        <div class="mt-2 text-lg font-semibold text-white">{{ analytics.setup_label }}</div>
+        <p class="mt-2 text-sm text-slate-500">{{ analytics.setup_note }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="text-xs uppercase tracking-[0.18em] text-cyan-300">Champion Pool</div>
+        <div class="mt-2 text-lg font-semibold text-white">{{ analytics.pool_label }}</div>
+        <p class="mt-2 text-sm text-slate-500">{{ analytics.pool_note }}</p>
+    </div>
+</section>
+{% elif career %}
+<section class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
     <div class="metric-card text-center">
         <div class="metric-value">{{ career.games|int }}</div>
         <div class="metric-note">Games</div>
@@ -69,10 +166,6 @@
         <div class="metric-note">KDA</div>
     </div>
     <div class="metric-card text-center">
-        <div class="metric-value metric-value-small">{{ career.avg_kills }}/{{ career.avg_deaths }}/{{ career.avg_assists }}</div>
-        <div class="metric-note">Avg K/D/A</div>
-    </div>
-    <div class="metric-card text-center">
         <div class="metric-value">{{ career.avg_dpm|int }}</div>
         <div class="metric-note">Avg DPM</div>
     </div>
@@ -80,11 +173,110 @@
         <div class="metric-value">{{ career.avg_cspm }}</div>
         <div class="metric-note">Avg CS/min</div>
     </div>
-</div>
+    <div class="metric-card text-center">
+        <div class="metric-value">{{ career.avg_gd15|int }}</div>
+        <div class="metric-note">Avg GD@15</div>
+    </div>
+</section>
+{% endif %}
+
+{% if role_benchmark and role_benchmark.available %}
+<section class="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+    <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div class="max-w-3xl">
+            <div class="text-xs uppercase tracking-[0.18em] text-slate-500">Role Benchmark</div>
+            <h2 class="mt-2 text-2xl font-semibold text-white">{{ role_benchmark.impact_label }}</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-400">{{ role_benchmark.impact_note }}</p>
+            <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                <span>{{ role_benchmark.position|upper }} peers</span>
+                <span>{{ role_benchmark.peer_count }} benchmark players</span>
+                <span>{{ role_benchmark.scope_label }}</span>
+            </div>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-3 xl:min-w-[420px]">
+            {{ profile_card('Impact Index', role_benchmark.impact_index, '', 'text-cyan-300', 'Composite percentile vs role peers') }}
+            {{ profile_card('Avg KDA', analytics.avg_kda, '', 'text-white', 'Per-game KDA average') }}
+            {{ profile_card('FB Involvement', analytics.first_blood_involvement_pct, '%', 'text-fuchsia-300', 'Kill or assist on first blood') }}
+        </div>
+    </div>
+
+    <div class="mt-5 overflow-x-auto">
+        <table class="home-table w-full min-w-[760px] text-sm">
+            <thead>
+                <tr>
+                    <th class="px-3 py-3 text-left">Metric</th>
+                    <th class="px-3 py-3 text-center">Player</th>
+                    <th class="px-3 py-3 text-center">Peer Avg</th>
+                    <th class="px-3 py-3 text-center">Delta</th>
+                    <th class="px-3 py-3 text-center">Percentile</th>
+                    <th class="px-3 py-3 text-center">Read</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in role_benchmark.metrics %}
+                <tr>
+                    <td class="px-3 py-3 font-semibold text-white">{{ row.metric }}</td>
+                    <td class="px-3 py-3 text-center text-slate-300">{{ row.player_value }}</td>
+                    <td class="px-3 py-3 text-center text-slate-400">{{ row.peer_avg }}</td>
+                    <td class="px-3 py-3 text-center {% if row.tone == 'up' %}text-emerald-400{% elif row.tone == 'down' %}text-rose-400{% else %}text-slate-400{% endif %}">
+                        {{ row.delta_text }}
+                    </td>
+                    <td class="px-3 py-3 text-center text-cyan-300">{{ row.percentile_label }}</td>
+                    <td class="px-3 py-3 text-center text-slate-400">{{ row.strength_label }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% if champion_analytics %}
+<section class="mb-8 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+    <div class="mb-3">
+        <div class="text-xs uppercase tracking-[0.18em] text-slate-500">Champion Signatures</div>
+        <h2 class="mt-2 text-2xl font-semibold text-white">How the pool actually plays</h2>
+        <p class="mt-2 text-sm leading-6 text-slate-400">Comforts, carry picks, and where the player's draft value tends to show up.</p>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="home-table w-full min-w-[920px] text-sm">
+            <thead>
+                <tr>
+                    <th class="px-3 py-3 text-left">Champion</th>
+                    <th class="px-3 py-3 text-center">Games</th>
+                    <th class="px-3 py-3 text-center">Share</th>
+                    <th class="px-3 py-3 text-center">WR</th>
+                    <th class="px-3 py-3 text-center">K/D/A</th>
+                    <th class="px-3 py-3 text-center">DPM</th>
+                    <th class="px-3 py-3 text-center">GD@15</th>
+                    <th class="px-3 py-3 text-center">Dmg%</th>
+                    <th class="px-3 py-3 text-center">Profile</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in champion_analytics %}
+                <tr>
+                    <td class="px-3 py-3">{{ champion_inline(c.champion, 'sm') }}</td>
+                    <td class="px-3 py-3 text-center">{{ c.games|int }}</td>
+                    <td class="px-3 py-3 text-center text-slate-400">{{ c.pick_share_pct }}%</td>
+                    <td class="px-3 py-3 text-center {% if c.winrate >= 55 %}text-emerald-400{% elif c.winrate < 45 %}text-rose-400{% else %}text-slate-300{% endif %}">{{ c.winrate }}%</td>
+                    <td class="px-3 py-3 text-center text-slate-300">{{ c.avg_k }}/{{ c.avg_d }}/{{ c.avg_a }}</td>
+                    <td class="px-3 py-3 text-center text-slate-400">{{ c.avg_dpm|int }}</td>
+                    <td class="px-3 py-3 text-center {% if c.avg_gd15 > 0 %}text-emerald-400{% elif c.avg_gd15 < 0 %}text-rose-400{% else %}text-slate-400{% endif %}">{{ c.avg_gd15|int }}</td>
+                    <td class="px-3 py-3 text-center text-slate-400">{{ c.avg_damage_share_pct }}%</td>
+                    <td class="px-3 py-3 text-center">
+                        <span class="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-xs text-slate-300">{{ c.profile_label }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 {% endif %}
 
 <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-    <section class="surface-card overflow-hidden">
+    <section class="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden">
         <div class="section-header">
             <div>
                 <div class="section-label">History</div>
@@ -108,12 +300,12 @@
                     {% for y in by_year %}
                     <tr class="cursor-pointer" onclick="window.location='/player/{{ info.playername }}?year={{ y.year|int }}{% if y.split %}&split={{ y.split }}{% endif %}'">
                         <td class="px-3 py-2 font-semibold">{{ y.year|int }}</td>
-                        <td class="px-3 py-2 home-table-muted text-xs">{{ y.split or '' }}</td>
+                        <td class="px-3 py-2 text-xs text-slate-500">{{ y.split or '' }}</td>
                         <td class="px-3 py-2"><a href="/team/{{ y.teamname }}" class="home-table-link">{{ y.teamname }}</a></td>
                         <td class="px-3 py-2 text-center">{{ y.games|int }}</td>
-                        <td class="px-3 py-2 text-center {% if y.winrate > 50 %}text-emerald-400{% elif y.winrate < 50 %}text-rose-400{% endif %}">{{ y.winrate }}%</td>
+                        <td class="px-3 py-2 text-center {% if y.winrate > 50 %}text-emerald-400{% elif y.winrate < 50 %}text-rose-400{% else %}text-slate-300{% endif %}">{{ y.winrate }}%</td>
                         <td class="px-3 py-2 text-center text-slate-300">{{ y.avg_k }}/{{ y.avg_d }}/{{ y.avg_a }}</td>
-                        <td class="px-3 py-2 text-center home-table-muted">{{ y.avg_dpm|int }}</td>
+                        <td class="px-3 py-2 text-center text-slate-400">{{ y.avg_dpm|int }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -121,41 +313,25 @@
         </div>
     </section>
 
-    <section class="surface-card overflow-hidden">
-        <div class="section-header">
-            <div>
-                <div class="section-label">Champion Pool</div>
-                <h2 class="section-title">Most Played Champions</h2>
-            </div>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="home-table w-full text-sm">
-                <thead>
-                    <tr>
-                        <th class="px-3 py-2 text-left">Champion</th>
-                        <th class="px-3 py-2 text-center">Games</th>
-                        <th class="px-3 py-2 text-center">WR</th>
-                        <th class="px-3 py-2 text-center">K/D/A</th>
-                        <th class="px-3 py-2 text-center">DPM</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for c in champions %}
-                    <tr>
-                        <td class="px-3 py-2">{{ champion_inline(c.champion, 'sm') }}</td>
-                        <td class="px-3 py-2 text-center">{{ c.games|int }}</td>
-                        <td class="px-3 py-2 text-center {% if c.winrate > 55 %}text-emerald-400{% elif c.winrate < 45 %}text-rose-400{% endif %}">{{ c.winrate }}%</td>
-                        <td class="px-3 py-2 text-center text-slate-300">{{ c.avg_k }}/{{ c.avg_d }}/{{ c.avg_a }}</td>
-                        <td class="px-3 py-2 text-center home-table-muted">{{ c.avg_dpm|int }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    {% if analytics and analytics.available %}
+    <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+        <div class="section-label">Slice Profile</div>
+        <h2 class="mt-2 text-2xl font-semibold text-white">Resource and pressure mix</h2>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+            {{ profile_card('KDA', analytics.avg_kda, '', 'text-white', 'Average per-game KDA') }}
+            {{ profile_card('CS/min', analytics.avg_cspm, '', 'text-white', 'Farm rate in the selected slice') }}
+            {{ profile_card('XP@15', analytics.avg_xd15|int, '', 'text-cyan-300', 'Average XP differential at 15') }}
+            {{ profile_card('CS@15', analytics.avg_csd15, '', 'text-cyan-300', 'Average CS differential at 15') }}
+            {{ profile_card('Gold Share', analytics.avg_gold_share_pct, '%', 'text-fuchsia-300', 'Share of earned team gold') }}
+            {{ profile_card('Earned GPM', analytics.avg_earned_gpm|int, '', 'text-fuchsia-300', 'Raw gold income rate') }}
+            {{ profile_card('Vision', analytics.avg_vision, '', 'text-amber-300', 'Average vision score') }}
+            {{ profile_card('VSPM', analytics.avg_vspm, '', 'text-amber-300', 'Vision score per minute') }}
         </div>
     </section>
+    {% endif %}
 </div>
 
-<section class="surface-card overflow-hidden mt-6">
+<section class="mt-6 rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden">
     <div class="section-header">
         <div>
             <div class="section-label">Recent Form</div>
@@ -178,14 +354,14 @@
             <tbody>
                 {% for g in recent_games %}
                 <tr class="{% if g.result == 1 %}win{% else %}loss{% endif %}">
-                    <td class="px-3 py-2 home-table-muted">{{ g.game_date.strftime('%Y-%m-%d') if g.game_date else '' }}</td>
+                    <td class="px-3 py-2 text-slate-500">{{ g.game_date.strftime('%Y-%m-%d') if g.game_date else '' }}</td>
                     <td class="px-3 py-2">
                         <a href="/tournament/{{ g.league }}/{{ g.game_date.year if g.game_date else '' }}" class="home-table-link">{{ g.league_label or g.league }}</a>
                     </td>
                     <td class="px-3 py-2">{{ champion_inline(g.champion, 'sm') }}</td>
                     <td class="px-3 py-2 text-center">{{ g.kills|int }}/{{ g.deaths|int }}/{{ g.assists|int }}</td>
-                    <td class="px-3 py-2 text-center home-table-muted">{{ g.dpm|int if g.dpm else '-' }}</td>
-                    <td class="px-3 py-2 text-center home-table-muted">{{ g.cspm if g.cspm else '-' }}</td>
+                    <td class="px-3 py-2 text-center text-slate-400">{{ g.dpm|int if g.dpm else '-' }}</td>
+                    <td class="px-3 py-2 text-center text-slate-400">{{ g.cspm if g.cspm else '-' }}</td>
                     <td class="px-3 py-2 text-center">
                         {% if g.result == 1 %}
                         <span class="font-semibold text-emerald-400">W</span>

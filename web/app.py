@@ -77,10 +77,15 @@ async def series_games(
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    recent = db.get_recent_series(limit=25)
+    recent = db.get_home_recent_series(limit=25)
     leagues = db.get_active_leagues()
     upcoming = db.get_upcoming_matches(limit=8)
     upcoming_meta = db.get_upcoming_matches_meta()
+    analytics_summary = db.get_home_analytics_summary()
+    power_rankings = db.get_power_rankings(limit=10)
+    league_trends = db.get_league_trends(limit=6)
+    model_watchlist = db.get_home_model_watchlist(limit=6)
+    edge_highlights = db.get_home_edge_highlights(limit=5)
     return templates.TemplateResponse(
         "home.html",
         {
@@ -89,6 +94,11 @@ async def home(request: Request):
             "active_leagues": leagues.to_dict("records"),
             "upcoming_matches": upcoming.to_dict("records"),
             "upcoming_meta": upcoming_meta,
+            "analytics_summary": analytics_summary,
+            "power_rankings": power_rankings.to_dict("records"),
+            "league_trends": league_trends.to_dict("records"),
+            "model_watchlist": model_watchlist.to_dict("records"),
+            "edge_highlights": edge_highlights.to_dict("records"),
         },
     )
 
@@ -159,8 +169,14 @@ async def prob_win_page(
     detail = (
         db.get_prob_win_detail(selected_match["match_id"]) if selected_match else None
     )
-    if detail is None and selected_match and match_id:
+    if detail is None and selected_match:
         detail = prob_win.build_prob_win_detail(selected_match)
+    if detail and selected_match:
+        detail = dict(detail)
+        explainability_match = detail.get("match") or selected_match
+        detail["explainability"] = prob_win.build_match_explainability(
+            explainability_match
+        )
     upcoming_meta = db.get_upcoming_matches_meta()
     available_leagues = db.get_upcoming_match_leagues()
     return templates.TemplateResponse(
@@ -175,6 +191,45 @@ async def prob_win_page(
             "league": league,
             "available_leagues": available_leagues.to_dict("records"),
             "upcoming_meta": upcoming_meta,
+        },
+    )
+
+
+@app.get("/edge-board", response_class=HTMLResponse)
+async def edge_board_page(
+    request: Request,
+    league: str = Query(None),
+    bookmaker: str = Query(None),
+    recommended_only: str = Query("1"),
+    limit: int = Query(80, ge=1, le=300),
+):
+    show_recommended_only = str(recommended_only).strip().lower() not in {
+        "",
+        "0",
+        "false",
+        "no",
+    }
+    rows_df = db.get_edge_board(
+        limit=limit,
+        league=league or None,
+        bookmaker=bookmaker or None,
+        recommended_only=show_recommended_only,
+    )
+    leagues_df = db.get_upcoming_match_leagues()
+    bookmakers_df = db.get_edge_board_bookmakers()
+    edge_meta = db.get_edge_board_meta()
+    return templates.TemplateResponse(
+        "edge_board.html",
+        {
+            "request": request,
+            "rows": rows_df.to_dict("records"),
+            "league": league or "",
+            "bookmaker": bookmaker or "",
+            "recommended_only": show_recommended_only,
+            "limit": limit,
+            "available_leagues": leagues_df.to_dict("records"),
+            "available_bookmakers": bookmakers_df.to_dict("records"),
+            "edge_meta": edge_meta,
         },
     )
 
@@ -215,9 +270,15 @@ async def player(
         )
     career = db.get_player_career_stats(name, year=year, split=split)
     by_year = db.get_player_by_year(name)
-    champions = db.get_player_champions(name, year=year, split=split)
     recent = db.get_player_recent_games(name, year=year, split=split)
     splits = db.get_player_splits(name)
+    analytics = db.get_player_analytics_summary(name, year=year, split=split)
+    role_benchmark = db.get_player_role_benchmark(name, year=year, split=split)
+    champion_analytics = db.get_player_champion_analytics(
+        name,
+        year=year,
+        split=split,
+    )
     return templates.TemplateResponse(
         "player.html",
         {
@@ -225,11 +286,13 @@ async def player(
             "info": info,
             "career": career,
             "by_year": by_year.to_dict("records"),
-            "champions": champions.to_dict("records"),
             "recent_games": recent.to_dict("records"),
             "available_splits": splits.to_dict("records"),
             "filter_year": year,
             "filter_split": split,
+            "analytics": analytics,
+            "role_benchmark": role_benchmark,
+            "champion_analytics": champion_analytics.to_dict("records"),
         },
     )
 
@@ -254,6 +317,10 @@ async def team(request: Request, name: str):
     betting = db.get_team_betting_stats(actual_name)
     wr_by_split = db.get_team_winrate_by_split(actual_name)
     form = db.get_team_form(actual_name, limit=10)
+    analytics = db.get_team_analytics_summary(actual_name)
+    player_impact = db.get_team_player_impact(actual_name)
+    signature_champions = db.get_team_signature_champions(actual_name)
+    patch_profile = db.get_team_patch_profile(actual_name)
     return templates.TemplateResponse(
         "team.html",
         {
@@ -266,6 +333,10 @@ async def team(request: Request, name: str):
             "betting": betting,
             "wr_by_split": wr_by_split.to_dict("records"),
             "form": form.to_dict("records"),
+            "analytics": analytics,
+            "player_impact": player_impact.to_dict("records"),
+            "signature_champions": signature_champions.to_dict("records"),
+            "patch_profile": patch_profile.to_dict("records"),
         },
     )
 
@@ -316,6 +387,9 @@ async def game(request: Request, gameid: str):
             {"request": request, "message": f"Game '{gameid}' not found"},
             status_code=404,
         )
+    game_analytics = db.get_game_analytics_summary(gameid)
+    team_backdrop = db.get_game_team_backdrop(gameid)
+    lane_matchups = db.get_game_lane_matchups(gameid)
     return templates.TemplateResponse(
         "game.html",
         {
@@ -323,6 +397,9 @@ async def game(request: Request, gameid: str):
             "gameid": gameid,
             "players": players.to_dict("records"),
             "teams": teams.to_dict("records"),
+            "game_analytics": game_analytics,
+            "team_backdrop": team_backdrop.to_dict("records"),
+            "lane_matchups": lane_matchups.to_dict("records"),
         },
     )
 

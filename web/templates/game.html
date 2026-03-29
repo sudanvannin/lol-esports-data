@@ -3,33 +3,229 @@
 {% block title %}Game Detail - LoL Esports Stats{% endblock %}
 {% block content %}
 
+{% macro metric_card(label, value, note='', tone='text-white') %}
+<div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+    <div class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ label }}</div>
+    <div class="mt-2 text-2xl font-semibold {{ tone }}">{{ value }}</div>
+    {% if note %}
+    <p class="mt-2 text-sm leading-6 text-slate-500">{{ note }}</p>
+    {% endif %}
+</div>
+{% endmacro %}
+
 {% if teams|length >= 2 %}
 {% set t1 = teams[0] %}
 {% set t2 = teams[1] %}
 
-<!-- Header -->
-<div class="text-center mb-8">
-    <div class="flex items-center justify-center gap-8">
-        <div class="text-right">
-            <a href="/team/{{ t1.teamname }}" class="text-2xl font-bold {% if t1.result == 1 %}text-green-400{% else %}text-slate-400{% endif %} hover:underline">{{ t1.teamname }}</a>
-            <div class="text-sm text-slate-500 uppercase">{{ t1.side }} side</div>
+<div class="mb-8 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+    <div>
+        <div class="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+            {% if game_analytics.league_label or game_analytics.league %}
+            <span>{{ game_analytics.league_label or game_analytics.league }}</span>
+            {% endif %}
+            {% if game_analytics.game_date %}
+            <span>{{ game_analytics.game_date.strftime('%Y-%m-%d') if game_analytics.game_date else '' }}</span>
+            {% endif %}
+            {% if game_analytics.patch %}
+            <span>Patch {{ game_analytics.patch }}</span>
+            {% endif %}
+            {% if game_analytics.game_number %}
+            <span>Game {{ game_analytics.game_number }}</span>
+            {% endif %}
         </div>
-        <div class="text-3xl font-bold text-slate-600">vs</div>
-        <div class="text-left">
-            <a href="/team/{{ t2.teamname }}" class="text-2xl font-bold {% if t2.result == 1 %}text-green-400{% else %}text-slate-400{% endif %} hover:underline">{{ t2.teamname }}</a>
-            <div class="text-sm text-slate-500 uppercase">{{ t2.side }} side</div>
+        <div class="mt-3 flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-8">
+            <div class="text-right">
+                <a href="/team/{{ t1.teamname }}" class="text-3xl font-bold {% if t1.result == 1 %}text-emerald-400{% else %}text-slate-300{% endif %} hover:underline">{{ t1.teamname }}</a>
+                <div class="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">{{ t1.side }} side</div>
+            </div>
+            <div class="flex flex-col items-center gap-2">
+                {% if game_analytics.script_label %}
+                <span class="rounded-full border border-cyan-700 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                    {{ game_analytics.script_label }}
+                </span>
+                {% endif %}
+                <div class="text-3xl font-bold text-slate-600">vs</div>
+            </div>
+            <div class="text-left">
+                <a href="/team/{{ t2.teamname }}" class="text-3xl font-bold {% if t2.result == 1 %}text-emerald-400{% else %}text-slate-300{% endif %} hover:underline">{{ t2.teamname }}</a>
+                <div class="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">{{ t2.side }} side</div>
+            </div>
         </div>
     </div>
-    <div class="text-sm text-slate-500 mt-2">Duration: {{ (t1.gamelength / 60)|int }}:{{ '%02d' | format((t1.gamelength % 60)|int) }} | Kills: {{ t1.teamkills|int }} - {{ t2.teamkills|int }}</div>
+    <div class="flex flex-wrap gap-3 text-sm">
+        <span class="rounded-full border border-slate-800 bg-slate-900 px-3 py-2 text-slate-300">
+            Duration {{ game_analytics.game_minutes if game_analytics.game_minutes else ((t1.gamelength / 60)|round(1)) }}m
+        </span>
+        <span class="rounded-full border border-slate-800 bg-slate-900 px-3 py-2 text-slate-300">
+            Kills {{ t1.teamkills|int }} - {{ t2.teamkills|int }}
+        </span>
+        {% if game_analytics.winning_team %}
+        <span class="rounded-full border border-emerald-700 bg-emerald-500/10 px-3 py-2 text-emerald-300">
+            Winner {{ game_analytics.winning_team }}
+        </span>
+        {% endif %}
+    </div>
 </div>
 
-<!-- Draft -->
-<div class="grid grid-cols-2 gap-6 mb-8">
+{% if game_analytics %}
+<section class="mb-8 grid grid-cols-1 gap-4 xl:grid-cols-4">
+    {{ metric_card('Game Script', game_analytics.script_label, game_analytics.script_note, 'text-cyan-300') }}
+    {{ metric_card('Decisive Edge', game_analytics.decisive_edge_label, game_analytics.decisive_edge_note, 'text-white') }}
+    {{ metric_card('Backdrop', game_analytics.backdrop_label, game_analytics.backdrop_note, 'text-amber-300') }}
+    {% set history_value = (game_analytics.winner_h2h_wins ~ '-' ~ game_analytics.loser_h2h_wins) if game_analytics.h2h_total_series else 'No series' %}
+    {{ metric_card('Series History', history_value, game_analytics.h2h_note, 'text-fuchsia-300') }}
+</section>
+
+<section class="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div class="metric-card text-center">
+        <div class="metric-value">{{ game_analytics.objective_share_pct }}%</div>
+        <div class="metric-note">Winner Objective Share</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value">{{ game_analytics.kill_diff }}</div>
+        <div class="metric-note">Kill Margin</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value">{{ game_analytics.tower_diff }}</div>
+        <div class="metric-note">Tower Margin</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value {% if game_analytics.winner_gd15 > 0 %}text-emerald-400{% elif game_analytics.winner_gd15 < 0 %}text-rose-400{% endif %}">
+            {{ game_analytics.winner_gd15|int }}
+        </div>
+        <div class="metric-note">Winner GD@15</div>
+    </div>
+</section>
+{% endif %}
+
+{% if team_backdrop %}
+<section class="mb-8">
+    <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <h2 class="text-base font-semibold text-slate-200">Matchup Backdrop</h2>
+            <p class="mt-1 text-sm text-slate-500">How both teams were trending before this game landed.</p>
+        </div>
+        <span class="rounded-full border border-slate-800 bg-slate-900 px-3 py-1 text-xs uppercase tracking-wider text-slate-500">
+            Last 60 days
+        </span>
+    </div>
+    <div class="grid gap-4 lg:grid-cols-2">
+        {% for profile in team_backdrop %}
+        <div class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <div class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ profile.side }} side</div>
+                    <h3 class="mt-2 text-xl font-semibold text-white">{{ profile.teamname }}</h3>
+                </div>
+                <span class="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] {{ 'border-emerald-700 bg-emerald-500/10 text-emerald-300' if profile.won_game else 'border-rose-700 bg-rose-500/10 text-rose-300' }}">
+                    {{ 'Won this game' if profile.won_game else 'Lost this game' }}
+                </span>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-3">
+                <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                    <div class="text-xs uppercase tracking-[0.14em] text-slate-500">Recent WR</div>
+                    <div class="mt-1 text-lg font-semibold text-white">{{ profile.winrate_recent }}%</div>
+                    <div class="mt-1 text-sm {% if profile.winrate_delta > 0 %}text-emerald-400{% elif profile.winrate_delta < 0 %}text-rose-400{% else %}text-slate-400{% endif %}">
+                        Delta {{ profile.winrate_delta }}
+                    </div>
+                </div>
+                <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                    <div class="text-xs uppercase tracking-[0.14em] text-slate-500">Dominance</div>
+                    <div class="mt-1 text-lg font-semibold text-white">{{ profile.dominance_score }}</div>
+                    <div class="mt-1 text-sm text-slate-400">{{ profile.games_recent }} recent games</div>
+                </div>
+                <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                    <div class="text-xs uppercase tracking-[0.14em] text-slate-500">GD@15</div>
+                    <div class="mt-1 text-lg font-semibold {% if profile.avg_gd15 > 0 %}text-emerald-400{% elif profile.avg_gd15 < 0 %}text-rose-400{% else %}text-white{% endif %}">{{ profile.avg_gd15|int }}</div>
+                    <div class="mt-1 text-sm text-slate-400">{{ profile.trend_label }}</div>
+                </div>
+                <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                    <div class="text-xs uppercase tracking-[0.14em] text-slate-500">Objective Control</div>
+                    <div class="mt-1 text-lg font-semibold text-white">{{ profile.objective_control_pct }}%</div>
+                    <div class="mt-1 text-sm text-slate-400">{{ profile.control_label }}</div>
+                </div>
+            </div>
+            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                    <div class="text-xs uppercase tracking-[0.14em] text-cyan-300">Trend</div>
+                    <div class="mt-2 text-sm font-semibold text-white">{{ profile.trend_label }}</div>
+                    <p class="mt-2 text-sm leading-6 text-slate-500">{{ profile.trend_note }}</p>
+                </div>
+                <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                    <div class="text-xs uppercase tracking-[0.14em] text-cyan-300">Tempo</div>
+                    <div class="mt-2 text-sm font-semibold text-white">{{ profile.tempo_label }}</div>
+                    <p class="mt-2 text-sm leading-6 text-slate-500">{{ profile.tempo_note }}</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if lane_matchups %}
+<section class="mb-8">
+    <div class="mb-3">
+        <h2 class="text-base font-semibold text-slate-200">Lane Matchups</h2>
+        <p class="mt-1 text-sm text-slate-500">Position-by-position read of where the game tilted.</p>
+    </div>
+    <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+        <table class="home-table w-full text-sm">
+            <thead>
+                <tr>
+                    <th class="px-3 py-3 text-left">Lane</th>
+                    <th class="px-3 py-3 text-left">{{ t1.teamname }}</th>
+                    <th class="px-3 py-3 text-center">Read</th>
+                    <th class="px-3 py-3 text-left">{{ t2.teamname }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lane in lane_matchups %}
+                <tr>
+                    <td class="px-3 py-3 align-top">
+                        <div class="text-sm font-semibold text-white">{{ lane.position_label }}</div>
+                        <div class="mt-1 text-xs text-slate-500">{{ lane.edge_note }}</div>
+                    </td>
+                    <td class="px-3 py-3 align-top">
+                        <div class="font-semibold text-slate-200">{{ lane.team1_player }}</div>
+                        <div class="mt-1 text-sm text-slate-400">{{ champion_inline(lane.team1_champion, 'sm') }}</div>
+                        <div class="mt-2 text-xs text-slate-500">KDA {{ lane.team1_kda }} | DPM {{ lane.team1_dpm|int }} | GD@15 {{ lane.team1_gd15|int }}</div>
+                    </td>
+                    <td class="px-3 py-3 align-top text-center">
+                        <div class="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2">
+                            <div class="text-xs uppercase tracking-[0.14em] text-slate-500">{{ lane.edge_label }}</div>
+                            <div class="mt-2 text-sm font-semibold {% if lane.edge_team == 'Even lane' %}text-slate-300{% elif lane.edge_team == t1.teamname %}text-cyan-300{% else %}text-fuchsia-300{% endif %}">
+                                {{ lane.edge_team }}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-3 py-3 align-top">
+                        <div class="font-semibold text-slate-200">{{ lane.team2_player }}</div>
+                        <div class="mt-1 text-sm text-slate-400">{{ champion_inline(lane.team2_champion, 'sm') }}</div>
+                        <div class="mt-2 text-xs text-slate-500">KDA {{ lane.team2_kda }} | DPM {{ lane.team2_dpm|int }} | GD@15 {{ lane.team2_gd15|int }}</div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<div class="mb-8 grid gap-6 lg:grid-cols-2">
     {% for t in [t1, t2] %}
-    <div class="surface-card p-4">
-        <h3 class="text-sm font-semibold text-slate-400 uppercase mb-3">{{ t.teamname }} Draft</h3>
-        <div class="mb-3">
-            <span class="text-xs text-slate-500 uppercase">Picks:</span>
+    <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <div class="text-xs uppercase tracking-[0.18em] text-slate-500">{{ t.side }} side</div>
+                <h2 class="mt-2 text-lg font-semibold text-white">{{ t.teamname }} Draft</h2>
+            </div>
+            <span class="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] {{ 'border-emerald-700 bg-emerald-500/10 text-emerald-300' if t.result == 1 else 'border-rose-700 bg-rose-500/10 text-rose-300' }}">
+                {{ 'Victory' if t.result == 1 else 'Defeat' }}
+            </span>
+        </div>
+        <div class="mt-4">
+            <div class="text-xs uppercase tracking-[0.14em] text-slate-500">Picks</div>
             <div class="draft-slot-grid mt-2">
                 {% for pick in [t.pick1, t.pick2, t.pick3, t.pick4, t.pick5] %}
                 {% if pick %}
@@ -38,8 +234,8 @@
                 {% endfor %}
             </div>
         </div>
-        <div>
-            <span class="text-xs text-slate-500 uppercase">Bans:</span>
+        <div class="mt-4">
+            <div class="text-xs uppercase tracking-[0.14em] text-slate-500">Bans</div>
             <div class="draft-slot-grid mt-2">
                 {% for ban in [t.ban1, t.ban2, t.ban3, t.ban4, t.ban5] %}
                 {% if ban %}
@@ -48,95 +244,111 @@
                 {% endfor %}
             </div>
         </div>
-    </div>
+    </section>
     {% endfor %}
 </div>
 
-<!-- Objectives -->
-<div class="grid grid-cols-2 gap-6 mb-8">
+<div class="mb-8 grid gap-6 lg:grid-cols-2">
     {% for t in [t1, t2] %}
-    <div class="surface-card p-4">
-        <h3 class="text-sm font-semibold text-slate-400 uppercase mb-3">{{ t.teamname }} Objectives</h3>
-        <div class="grid grid-cols-3 gap-3 text-center text-sm">
+    <section class="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-                <div class="text-lg font-bold">{{ t.towers|int if t.towers else 0 }}</div>
-                <div class="text-xs text-slate-500">Towers</div>
+                <div class="text-xs uppercase tracking-[0.18em] text-slate-500">Objective map</div>
+                <h2 class="mt-2 text-lg font-semibold text-white">{{ t.teamname }}</h2>
             </div>
-            <div>
-                <div class="text-lg font-bold">{{ t.dragons|int if t.dragons else 0 }}</div>
-                <div class="text-xs text-slate-500">Dragons</div>
+            <div class="text-sm text-slate-400">{{ t.teamkills|int }} kills</div>
+        </div>
+        <div class="mt-4 grid grid-cols-3 gap-3 text-center text-sm">
+            <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <div class="text-lg font-semibold text-white">{{ t.towers|int if t.towers else 0 }}</div>
+                <div class="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">Towers</div>
             </div>
-            <div>
-                <div class="text-lg font-bold">{{ t.barons|int if t.barons else 0 }}</div>
-                <div class="text-xs text-slate-500">Barons</div>
+            <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <div class="text-lg font-semibold text-white">{{ t.dragons|int if t.dragons else 0 }}</div>
+                <div class="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">Dragons</div>
             </div>
-            <div>
-                <div class="text-lg font-bold">{{ t.heralds|int if t.heralds else 0 }}</div>
-                <div class="text-xs text-slate-500">Heralds</div>
+            <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <div class="text-lg font-semibold text-white">{{ t.barons|int if t.barons else 0 }}</div>
+                <div class="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">Barons</div>
             </div>
-            <div>
-                <div class="text-lg font-bold">{{ t.void_grubs|int if t.void_grubs else 0 }}</div>
-                <div class="text-xs text-slate-500">Grubs</div>
+            <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <div class="text-lg font-semibold text-white">{{ t.heralds|int if t.heralds else 0 }}</div>
+                <div class="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">Heralds</div>
             </div>
-            <div>
-                <div class="text-lg font-bold">{{ t.elders|int if t.elders else 0 }}</div>
-                <div class="text-xs text-slate-500">Elders</div>
+            <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <div class="text-lg font-semibold text-white">{{ t.void_grubs|int if t.void_grubs else 0 }}</div>
+                <div class="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">Grubs</div>
+            </div>
+            <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                <div class="text-lg font-semibold text-white">{{ t.elders|int if t.elders else 0 }}</div>
+                <div class="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">Elders</div>
             </div>
         </div>
-    </div>
+        <div class="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
+            {% if t.firstblood %}<span class="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1">First Blood</span>{% endif %}
+            {% if t.firsttower %}<span class="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1">First Tower</span>{% endif %}
+            {% if t.firstdragon %}<span class="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1">First Dragon</span>{% endif %}
+            {% if t.firstbaron %}<span class="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1">First Baron</span>{% endif %}
+        </div>
+    </section>
     {% endfor %}
 </div>
 
-<!-- Player Stats -->
 {% set team_names = players | map(attribute='teamname') | unique | list %}
-<div class="grid grid-cols-1 gap-6">
-    {% for team_name in team_names %}
-    {% set team_players = players | selectattr('teamname', 'equalto', team_name) | list %}
-    <div>
-        <h2 class="text-lg font-semibold mb-3 {% if team_players[0].result == 1 %}text-green-400{% else %}text-red-400{% endif %}">
-            {{ team_name }} {% if team_players[0].result == 1 %}(Victory){% else %}(Defeat){% endif %}
-        </h2>
-        <div class="surface-card overflow-hidden">
-            <table class="home-table w-full text-sm">
-                <thead>
-                    <tr>
-                        <th class="px-3 py-2 text-center">Pos</th>
-                        <th class="px-3 py-2 text-left">Player</th>
-                        <th class="px-3 py-2 text-left">Champion</th>
-                        <th class="px-3 py-2 text-center">K/D/A</th>
-                        <th class="px-3 py-2 text-center">DPM</th>
-                        <th class="px-3 py-2 text-center">Dmg%</th>
-                        <th class="px-3 py-2 text-center">Gold</th>
-                        <th class="px-3 py-2 text-center">CS/m</th>
-                        <th class="px-3 py-2 text-center">Vision</th>
-                        <th class="px-3 py-2 text-center">GD@15</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in team_players %}
-                    <tr>
-                        <td class="px-3 py-2 text-center home-table-muted uppercase text-xs">{{ p.position }}</td>
-                        <td class="px-3 py-2">
-                            <a href="/player/{{ p.playername }}" class="home-table-link">{{ p.playername }}</a>
-                        </td>
-                        <td class="px-3 py-2">{{ champion_inline(p.champion, 'sm') }}</td>
-                        <td class="px-3 py-2 text-center">{{ p.kills|int }}/{{ p.deaths|int }}/{{ p.assists|int }}</td>
-                        <td class="px-3 py-2 text-center home-table-muted">{{ p.dpm|int if p.dpm else '-' }}</td>
-                        <td class="px-3 py-2 text-center home-table-muted">{{ '%.0f' | format(p.damageshare * 100) if p.damageshare else '-' }}%</td>
-                        <td class="px-3 py-2 text-center home-table-muted">{{ '%.1f' | format(p.totalgold / 1000) if p.totalgold else '-' }}k</td>
-                        <td class="px-3 py-2 text-center home-table-muted">{{ p.cspm if p.cspm else '-' }}</td>
-                        <td class="px-3 py-2 text-center home-table-muted">{{ p.visionscore|int if p.visionscore else '-' }}</td>
-                        <td class="px-3 py-2 text-center {% if p.golddiffat15 and p.golddiffat15 > 0 %}text-green-400{% elif p.golddiffat15 and p.golddiffat15 < 0 %}text-red-400{% else %}text-slate-400{% endif %}">
-                            {{ p.golddiffat15|int if p.golddiffat15 else '-' }}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<section>
+    <div class="mb-3">
+        <h2 class="text-base font-semibold text-slate-200">Player Box Score</h2>
+        <p class="mt-1 text-sm text-slate-500">Role-level output from the game itself.</p>
     </div>
-    {% endfor %}
-</div>
+    <div class="grid grid-cols-1 gap-6">
+        {% for team_name in team_names %}
+        {% set team_players = players | selectattr('teamname', 'equalto', team_name) | list %}
+        <div>
+            <h3 class="mb-3 text-lg font-semibold {% if team_players[0].result == 1 %}text-emerald-400{% else %}text-rose-300{% endif %}">
+                {{ team_name }} {% if team_players[0].result == 1 %}(Victory){% else %}(Defeat){% endif %}
+            </h3>
+            <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                <table class="home-table w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="px-3 py-3 text-center">Pos</th>
+                            <th class="px-3 py-3 text-left">Player</th>
+                            <th class="px-3 py-3 text-left">Champion</th>
+                            <th class="px-3 py-3 text-center">K/D/A</th>
+                            <th class="px-3 py-3 text-center">DPM</th>
+                            <th class="px-3 py-3 text-center">Dmg%</th>
+                            <th class="px-3 py-3 text-center">Gold</th>
+                            <th class="px-3 py-3 text-center">CS/m</th>
+                            <th class="px-3 py-3 text-center">Vision</th>
+                            <th class="px-3 py-3 text-center">GD@15</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in team_players %}
+                        <tr>
+                            <td class="px-3 py-3 text-center uppercase text-xs text-slate-500">{{ p.position }}</td>
+                            <td class="px-3 py-3">
+                                <a href="/player/{{ p.playername }}" class="home-table-link">{{ p.playername }}</a>
+                            </td>
+                            <td class="px-3 py-3">{{ champion_inline(p.champion, 'sm') }}</td>
+                            <td class="px-3 py-3 text-center">{{ p.kills|int }}/{{ p.deaths|int }}/{{ p.assists|int }}</td>
+                            <td class="px-3 py-3 text-center text-slate-400">{{ p.dpm|int if p.dpm else '-' }}</td>
+                            <td class="px-3 py-3 text-center text-slate-400">{{ '%.0f' | format(p.damageshare * 100) if p.damageshare else '-' }}%</td>
+                            <td class="px-3 py-3 text-center text-slate-400">{{ '%.1f' | format(p.totalgold / 1000) if p.totalgold else '-' }}k</td>
+                            <td class="px-3 py-3 text-center text-slate-400">{{ p.cspm if p.cspm else '-' }}</td>
+                            <td class="px-3 py-3 text-center text-slate-400">{{ p.visionscore|int if p.visionscore else '-' }}</td>
+                            <td class="px-3 py-3 text-center {% if p.golddiffat15 and p.golddiffat15 > 0 %}text-emerald-400{% elif p.golddiffat15 and p.golddiffat15 < 0 %}text-rose-400{% else %}text-slate-400{% endif %}">
+                                {{ p.golddiffat15|int if p.golddiffat15 else '-' }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
 {% endif %}
 
 {% endblock %}

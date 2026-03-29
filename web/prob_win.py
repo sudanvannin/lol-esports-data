@@ -6,6 +6,7 @@ import json
 import math
 import re
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -85,14 +86,33 @@ def _format_model_error(exc: Exception) -> str:
     return message or exc.__class__.__name__
 
 
-@lru_cache(maxsize=1)
-def _winner_scorer_state() -> tuple[Any | None, str | None]:
+def _cache_key_for_path(path: Path) -> tuple[str, int]:
+    resolved = path.resolve()
     try:
-        from src.ml.fair_odds import PrematchFairOddsScorer
+        mtime_ns = resolved.stat().st_mtime_ns
+    except OSError:
+        mtime_ns = -1
+    return str(resolved), int(mtime_ns)
 
-        return PrematchFairOddsScorer(), None
+
+@lru_cache(maxsize=4)
+def _winner_scorer_state_cached(_cache_key: tuple[str, int]) -> tuple[Any | None, str | None]:
+    try:
+        from src.ml.model_registry import DEFAULT_MODEL_REGISTRY_PATH
+        from src.ml.winner_scorer import build_winner_scorer
+
+        del DEFAULT_MODEL_REGISTRY_PATH
+        return build_winner_scorer(), None
     except Exception as exc:
         return None, _format_model_error(exc)
+
+
+def _winner_scorer_state() -> tuple[Any | None, str | None]:
+    try:
+        from src.ml.model_registry import DEFAULT_MODEL_REGISTRY_PATH
+    except Exception:
+        return _winner_scorer_state_cached(("", -1))
+    return _winner_scorer_state_cached(_cache_key_for_path(DEFAULT_MODEL_REGISTRY_PATH))
 
 
 @lru_cache(maxsize=1)
@@ -334,6 +354,313 @@ def _score_totals_cached(
         "available": True,
         "warnings": list(quote.warnings),
         "markets": markets,
+    }
+
+
+def _build_edge_signal(
+    *,
+    title: str,
+    diff: float,
+    scale: float,
+    team1_name: str,
+    team2_name: str,
+    note: str,
+    value_suffix: str,
+) -> dict[str, Any]:
+    strength_score = abs(diff) / scale if scale else 0.0
+    if strength_score >= 1.75:
+        strength_label = "Strong"
+    elif strength_score >= 1.0:
+        strength_label = "Medium"
+    else:
+        strength_label = "Light"
+    favored_name = team1_name if diff >= 0 else team2_name
+    return {
+        "title": title,
+        "favored_name": favored_name,
+        "strength_label": strength_label,
+        "value_text": f"{abs(diff):.1f}{value_suffix}",
+        "score": strength_score,
+        "note": note,
+    }
+
+
+def _confidence_tier(confidence_gap_pct: float, disagreement_pct: float | None) -> tuple[str, str]:
+    spread = float(disagreement_pct or 0.0)
+    if confidence_gap_pct >= 28.0 and spread <= 4.0:
+        return (
+            "High conviction",
+            "The model gap is wide and the underlying ensemble is tightly aligned.",
+        )
+    if confidence_gap_pct >= 16.0 and spread <= 7.5:
+        return (
+            "Solid edge",
+            "There is a clear favorite, with only moderate disagreement across signals.",
+        )
+    if confidence_gap_pct <= 8.0 or spread >= 10.0:
+        return (
+            "Fragile read",
+            "The matchup is close or the submodels are pulling in different directions.",
+        )
+    return (
+        "Leaning favorite",
+        "The favorite is credible, but the setup still carries meaningful volatility.",
+    )
+
+
+def build_match_explainability(match_row: dict[str, Any]) -> dict[str, Any]:
+    """Explain the winner model output using the same matchup inputs it scores on."""
+    context = build_match_context(match_row)
+    team1 = _clean_text(match_row.get("team1"))
+    team2 = _clean_text(match_row.get("team2"))
+    scorer, scorer_error = _winner_scorer_state()
+
+    if scorer is None:
+        return {
+            "available": False,
+            "error": scorer_error or "Winner model unavailable.",
+        }
+
+    try:
+        event_time = context["match_time"]
+        team1_key, team1_name = scorer.resolve_team(team1)
+        team2_key, team2_name = scorer.resolve_team(team2)
+        feature_row, warnings, _ = scorer._build_feature_row(
+            event_time=event_time,
+            team1_key=team1_key,
+            team1_name=team1_name,
+            team2_key=team2_key,
+            team2_name=team2_name,
+            league_code=context["league_code"],
+            split_name=context["split_name"],
+            patch_version=context["patch_version"],
+            best_of=context["best_of"],
+            playoffs=context["playoffs"],
+        )
+        quote = scorer.score_match(
+            team1=team1,
+            team2=team2,
+            match_time=context["match_time_iso"],
+            league_code=context["league_code"],
+            split_name=context["split_name"],
+            patch_version=context["patch_version"],
+            best_of=context["best_of"],
+            playoffs=context["playoffs"],
+        )
+    except Exception as exc:
+        return {
+            "available": False,
+            "error": _format_model_error(exc),
+        }
+
+    team1_win_pct = _probability_to_pct(quote.team1_win_prob)
+    team2_win_pct = _probability_to_pct(quote.team2_win_prob)
+    confidence_gap_pct = abs(team1_win_pct - team2_win_pct)
+    favorite_name = team1_name if team1_win_pct >= team2_win_pct else team2_name
+    disagreement_raw = getattr(quote, "model_disagreement_score", None)
+    disagreement_pct = (
+        round(float(disagreement_raw) * 100.0, 1)
+        if disagreement_raw is not None
+        else None
+    )
+    confidence_label, confidence_note = _confidence_tier(
+        confidence_gap_pct,
+        disagreement_pct,
+    )
+
+    signals: list[dict[str, Any]] = []
+    team1_elo_prob = feature_row.get("team1_elo_win_prob")
+    if team1_elo_prob is not None:
+        signals.append(
+            _build_edge_signal(
+                title="Base rating edge",
+                diff=(float(team1_elo_prob) - 0.5) * 100.0,
+                scale=8.0,
+                team1_name=team1_name,
+                team2_name=team2_name,
+                note="Core historical strength before matchup-specific adjustments.",
+                value_suffix="pp",
+            )
+        )
+
+    recent_sample = float(feature_row.get("team1_recent5_series_count", 0) or 0) + float(
+        feature_row.get("team2_recent5_series_count", 0) or 0
+    )
+    if recent_sample >= 4:
+        signals.append(
+            _build_edge_signal(
+                title="Recent form",
+                diff=float(feature_row.get("recent5_series_win_rate_diff", 0.0)) * 100.0,
+                scale=10.0,
+                team1_name=team1_name,
+                team2_name=team2_name,
+                note="Last-five-series win-rate gap inside the core matchup history.",
+                value_suffix="pp",
+            )
+        )
+
+    long_run_sample = float(feature_row.get("team1_prior_series_count", 0) or 0) + float(
+        feature_row.get("team2_prior_series_count", 0) or 0
+    )
+    if long_run_sample >= 12:
+        signals.append(
+            _build_edge_signal(
+                title="Long-run form",
+                diff=float(feature_row.get("prior_series_win_rate_diff", 0.0)) * 100.0,
+                scale=8.0,
+                team1_name=team1_name,
+                team2_name=team2_name,
+                note="Overall prior series win-rate gap from the training history.",
+                value_suffix="pp",
+            )
+        )
+
+    patch_sample = float(feature_row.get("team1_patch_prior_series_count", 0) or 0) + float(
+        feature_row.get("team2_patch_prior_series_count", 0) or 0
+    )
+    if patch_sample >= 4:
+        signals.append(
+            _build_edge_signal(
+                title="Patch fit",
+                diff=float(feature_row.get("patch_prior_win_rate_diff", 0.0)) * 100.0,
+                scale=8.0,
+                team1_name=team1_name,
+                team2_name=team2_name,
+                note="How each team has performed on the current patch.",
+                value_suffix="pp",
+            )
+        )
+
+    split_sample = float(feature_row.get("team1_split_prior_series_count", 0) or 0) + float(
+        feature_row.get("team2_split_prior_series_count", 0) or 0
+    )
+    if split_sample >= 4:
+        signals.append(
+            _build_edge_signal(
+                title="Split fit",
+                diff=float(feature_row.get("split_prior_win_rate_diff", 0.0)) * 100.0,
+                scale=8.0,
+                team1_name=team1_name,
+                team2_name=team2_name,
+                note="Relative performance in this split or seasonal context.",
+                value_suffix="pp",
+            )
+        )
+
+    h2h_count = int(feature_row.get("h2h_prior_series_count", 0) or 0)
+    if h2h_count >= 2:
+        signals.append(
+            _build_edge_signal(
+                title="Head-to-head",
+                diff=(float(feature_row.get("h2h_team1_series_win_rate", 0.5)) - 0.5)
+                * 100.0,
+                scale=10.0,
+                team1_name=team1_name,
+                team2_name=team2_name,
+                note="Direct prior series results between these two teams.",
+                value_suffix="pp",
+            )
+        )
+
+    continuity_diff = float(feature_row.get("recent3_avg_roster_overlap_diff", 0.0) or 0.0)
+    if abs(continuity_diff) > 0.01:
+        signals.append(
+            _build_edge_signal(
+                title="Roster continuity",
+                diff=continuity_diff,
+                scale=1.0,
+                team1_name=team1_name,
+                team2_name=team2_name,
+                note="Average overlap with the previous three series rosters.",
+                value_suffix=" players",
+            )
+        )
+
+    churn_diff = -float(feature_row.get("roster_new_player_count_diff", 0.0) or 0.0)
+    if abs(churn_diff) > 0.01:
+        signals.append(
+            _build_edge_signal(
+                title="Roster stability",
+                diff=churn_diff,
+                scale=1.0,
+                team1_name=team1_name,
+                team2_name=team2_name,
+                note="Teams with fewer new players generally carry less integration risk.",
+                value_suffix=" players",
+            )
+        )
+
+    signals = sorted(signals, key=lambda item: item["score"], reverse=True)[:4]
+
+    individual_model_probs = getattr(quote, "individual_model_probs", {}) or {}
+    model_rows = [
+        {
+            "model_name": model_name.replace("_", " ").title(),
+            "team1_win_pct": _probability_to_pct(probability),
+        }
+        for model_name, probability in sorted(individual_model_probs.items())
+    ]
+    if disagreement_pct is None:
+        agreement_label = "Single-model output"
+        agreement_note = "This deploy is serving one winner model instead of an ensemble."
+    elif disagreement_pct <= 3.0:
+        agreement_label = "Tight agreement"
+        agreement_note = "The ensemble models are tightly clustered around the same read."
+    elif disagreement_pct <= 6.5:
+        agreement_label = "Moderate spread"
+        agreement_note = "The ensemble agrees on direction, but not on exact confidence."
+    else:
+        agreement_label = "High disagreement"
+        agreement_note = "Submodels disagree materially, so the read is more fragile."
+
+    sample_context = [
+        {
+            "label": "Core series",
+            "team1_value": int(feature_row.get("team1_prior_series_count", 0) or 0),
+            "team2_value": int(feature_row.get("team2_prior_series_count", 0) or 0),
+        },
+        {
+            "label": "Recent 5 sample",
+            "team1_value": int(feature_row.get("team1_recent5_series_count", 0) or 0),
+            "team2_value": int(feature_row.get("team2_recent5_series_count", 0) or 0),
+        },
+        {
+            "label": "Patch sample",
+            "team1_value": int(feature_row.get("team1_patch_prior_series_count", 0) or 0),
+            "team2_value": int(feature_row.get("team2_patch_prior_series_count", 0) or 0),
+        },
+        {
+            "label": "Split sample",
+            "team1_value": int(feature_row.get("team1_split_prior_series_count", 0) or 0),
+            "team2_value": int(feature_row.get("team2_split_prior_series_count", 0) or 0),
+        },
+    ]
+
+    lead_signals = ", ".join(item["title"].lower() for item in signals[:2]) if signals else ""
+    summary = (
+        f"{favorite_name} projects as the favorite mainly through {lead_signals}."
+        if lead_signals
+        else f"{favorite_name} projects as the favorite on the current prematch inputs."
+    )
+
+    return {
+        "available": True,
+        "favorite_name": favorite_name,
+        "favorite_prob_pct": max(team1_win_pct, team2_win_pct),
+        "confidence_gap_pct": round(confidence_gap_pct, 1),
+        "confidence_label": confidence_label,
+        "confidence_note": confidence_note,
+        "summary": summary,
+        "signals": signals,
+        "sample_context": sample_context,
+        "model_agreement": {
+            "label": agreement_label,
+            "note": agreement_note,
+            "disagreement_pct": disagreement_pct,
+            "calibration_method": getattr(quote, "calibration_method", "single_model"),
+            "models": model_rows,
+        },
+        "warnings": list(dict.fromkeys(list(getattr(quote, "warnings", [])) + list(warnings))),
     }
 
 

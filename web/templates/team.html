@@ -2,13 +2,33 @@
 {% block title %}{{ info.teamname }} - LoL Esports Stats{% endblock %}
 {% block content %}
 
+{% macro profile_card(label, value, suffix='', tone='text-slate-200', note='') %}
+<div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+    <div class="text-xs uppercase tracking-wider text-slate-500">{{ label }}</div>
+    <div class="mt-2 text-2xl font-semibold {{ tone }}">{{ value }}{{ suffix }}</div>
+    {% if note %}
+    <div class="mt-1 text-xs text-slate-500">{{ note }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
 <div class="mb-8 flex flex-wrap items-start justify-between gap-4">
     <div>
-        <h1 class="text-3xl font-bold text-white">{{ info.teamname }}</h1>
+        <div class="flex flex-wrap items-center gap-3">
+            <h1 class="text-3xl font-bold text-white">{{ info.teamname }}</h1>
+            {% if analytics and analytics.games_recent %}
+            <span class="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] {{ 'border-emerald-700 bg-emerald-500/10 text-emerald-300' if analytics.trend_label == 'Heating up' else ('border-rose-700 bg-rose-500/10 text-rose-300' if analytics.trend_label == 'Cooling off' else 'border-slate-700 bg-slate-800 text-slate-300') }}">
+                {{ analytics.trend_label }}
+            </span>
+            {% endif %}
+        </div>
         <div class="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-400">
             <span>{{ info.league_label or info.league }}</span>
             {% if titles %}
             <span class="text-amber-300">{{ titles|length }} title{{ 's' if titles|length != 1 else '' }}</span>
+            {% endif %}
+            {% if analytics and analytics.games_recent %}
+            <span>{{ analytics.games_recent }} games in the last 60 days</span>
             {% endif %}
         </div>
     </div>
@@ -26,6 +46,63 @@
     </div>
     {% endif %}
 </div>
+
+{% if analytics and analytics.games_recent %}
+<section class="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+    <div class="metric-card text-center">
+        <div class="metric-value {% if analytics.winrate_recent >= 55 %}text-emerald-400{% elif analytics.winrate_recent < 45 %}text-rose-400{% endif %}">{{ analytics.winrate_recent }}%</div>
+        <div class="metric-note">Recent Win Rate</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value {% if analytics.winrate_delta > 0 %}text-emerald-400{% elif analytics.winrate_delta < 0 %}text-rose-400{% endif %}">{{ analytics.winrate_delta }}</div>
+        <div class="metric-note">Win Rate Delta</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value">{{ analytics.dominance_score }}</div>
+        <div class="metric-note">Dominance Score</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value {% if analytics.avg_gd15 > 0 %}text-emerald-400{% elif analytics.avg_gd15 < 0 %}text-rose-400{% endif %}">{{ analytics.avg_gd15|int }}</div>
+        <div class="metric-note">Avg GD@15</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value">{{ analytics.objective_control_pct }}%</div>
+        <div class="metric-note">Objective Control</div>
+    </div>
+    <div class="metric-card text-center">
+        <div class="metric-value">{{ analytics.blue_side_winrate }} / {{ analytics.red_side_winrate }}</div>
+        <div class="metric-note">Blue / Red WR</div>
+    </div>
+</section>
+
+<section class="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-5">
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="text-xs uppercase tracking-[0.18em] text-cyan-300">Trend</div>
+        <div class="mt-2 text-lg font-semibold text-white">{{ analytics.trend_label }}</div>
+        <p class="mt-2 text-sm text-slate-500">{{ analytics.trend_note }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="text-xs uppercase tracking-[0.18em] text-cyan-300">Early Game</div>
+        <div class="mt-2 text-lg font-semibold text-white">{{ analytics.early_game_label }}</div>
+        <p class="mt-2 text-sm text-slate-500">{{ analytics.early_game_note }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="text-xs uppercase tracking-[0.18em] text-cyan-300">Tempo</div>
+        <div class="mt-2 text-lg font-semibold text-white">{{ analytics.tempo_label }}</div>
+        <p class="mt-2 text-sm text-slate-500">{{ analytics.tempo_note }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="text-xs uppercase tracking-[0.18em] text-cyan-300">Map Control</div>
+        <div class="mt-2 text-lg font-semibold text-white">{{ analytics.control_label }}</div>
+        <p class="mt-2 text-sm text-slate-500">{{ analytics.control_note }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div class="text-xs uppercase tracking-[0.18em] text-cyan-300">Side Read</div>
+        <div class="mt-2 text-lg font-semibold text-white">{{ analytics.side_bias_label }}</div>
+        <p class="mt-2 text-sm text-slate-500">{{ analytics.side_bias_note }}</p>
+    </div>
+</section>
+{% endif %}
 
 {% if wr_by_split and wr_by_split|length > 1 %}
 <div class="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -51,16 +128,6 @@
             {{ betting.games|int }} games tracked
         </span>
     </div>
-
-    {% macro profile_card(label, value, suffix='', tone='text-slate-200', note='') %}
-    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-        <div class="text-xs uppercase tracking-wider text-slate-500">{{ label }}</div>
-        <div class="mt-2 text-2xl font-semibold {{ tone }}">{{ value }}{{ suffix }}</div>
-        {% if note %}
-        <div class="mt-1 text-xs text-slate-500">{{ note }}</div>
-        {% endif %}
-    </div>
-    {% endmacro %}
 
     <div class="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {{ profile_card('Win Rate', betting.winrate, '%', 'text-emerald-400' if betting.winrate >= 50 else 'text-rose-400') }}
@@ -120,6 +187,41 @@
             </div>
         </section>
 
+        <section>
+            <h2 class="mb-3 text-base font-semibold text-slate-200">Player Impact <span class="text-xs font-normal text-slate-500">(last 120d)</span></h2>
+            <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                {% if player_impact %}
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-800 text-xs uppercase text-slate-400">
+                        <tr>
+                            <th class="px-3 py-2 text-left">Player</th>
+                            <th class="px-3 py-2 text-center">DPM</th>
+                            <th class="px-3 py-2 text-center">DMG%</th>
+                            <th class="px-3 py-2 text-center">GD15</th>
+                            <th class="px-3 py-2 text-center">Vision</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        {% for p in player_impact %}
+                        <tr class="hover:bg-slate-800/40">
+                            <td class="px-3 py-2">
+                                <div class="font-semibold text-cyan-300">{{ p.playername }}</div>
+                                <div class="text-[11px] uppercase text-slate-500">{{ p.position }}</div>
+                            </td>
+                            <td class="px-3 py-2 text-center text-slate-300">{{ p.avg_dpm|int }}</td>
+                            <td class="px-3 py-2 text-center text-slate-300">{{ p.avg_damage_share_pct }}%</td>
+                            <td class="px-3 py-2 text-center {{ 'text-emerald-400' if p.avg_gd15 > 0 else ('text-rose-400' if p.avg_gd15 < 0 else 'text-slate-400') }}">{{ p.avg_gd15|int }}</td>
+                            <td class="px-3 py-2 text-center text-slate-400">{{ p.avg_vision }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="p-4 text-sm text-slate-500">No player-level impact sample is available yet.</p>
+                {% endif %}
+            </div>
+        </section>
+
         {% if titles %}
         <section>
             <h2 class="mb-3 text-base font-semibold text-slate-200">Titles</h2>
@@ -143,6 +245,72 @@
     </div>
 
     <div class="lg:col-span-2 space-y-6">
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <section>
+                <h2 class="mb-3 text-base font-semibold text-slate-200">Signature Champions</h2>
+                <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                    {% if signature_champions %}
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-800 text-xs uppercase text-slate-400">
+                            <tr>
+                                <th class="px-3 py-2 text-left">Champion</th>
+                                <th class="px-3 py-2 text-center">Pos</th>
+                                <th class="px-3 py-2 text-center">Games</th>
+                                <th class="px-3 py-2 text-center">WR</th>
+                                <th class="px-3 py-2 text-center">GD15</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800">
+                            {% for c in signature_champions %}
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="px-3 py-2 font-semibold text-cyan-300">{{ c.champion }}</td>
+                                <td class="px-3 py-2 text-center text-[11px] uppercase text-slate-500">{{ c.position }}</td>
+                                <td class="px-3 py-2 text-center text-slate-400">{{ c.games|int }}</td>
+                                <td class="px-3 py-2 text-center {{ 'text-emerald-400' if c.winrate >= 55 else ('text-rose-400' if c.winrate < 45 else 'text-slate-300') }}">{{ c.winrate }}%</td>
+                                <td class="px-3 py-2 text-center {{ 'text-emerald-400' if c.avg_gd15 > 0 else ('text-rose-400' if c.avg_gd15 < 0 else 'text-slate-400') }}">{{ c.avg_gd15|int }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="p-4 text-sm text-slate-500">Champion-identity reads will appear once the recent sample is large enough.</p>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section>
+                <h2 class="mb-3 text-base font-semibold text-slate-200">Patch Performance</h2>
+                <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                    {% if patch_profile %}
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-800 text-xs uppercase text-slate-400">
+                            <tr>
+                                <th class="px-3 py-2 text-left">Patch</th>
+                                <th class="px-3 py-2 text-center">G</th>
+                                <th class="px-3 py-2 text-center">WR</th>
+                                <th class="px-3 py-2 text-center">KD Diff</th>
+                                <th class="px-3 py-2 text-center">1st Drg</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800">
+                            {% for p in patch_profile %}
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="px-3 py-2 font-semibold text-cyan-300">{{ p.patch }}</td>
+                                <td class="px-3 py-2 text-center text-slate-400">{{ p.games|int }}</td>
+                                <td class="px-3 py-2 text-center {{ 'text-emerald-400' if p.winrate >= 55 else ('text-rose-400' if p.winrate < 45 else 'text-slate-300') }}">{{ p.winrate }}%</td>
+                                <td class="px-3 py-2 text-center {{ 'text-emerald-400' if p.avg_kill_diff > 0 else ('text-rose-400' if p.avg_kill_diff < 0 else 'text-slate-400') }}">{{ p.avg_kill_diff }}</td>
+                                <td class="px-3 py-2 text-center text-slate-300">{{ p.first_dragon_pct }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="p-4 text-sm text-slate-500">Patch-level performance will appear once the sample covers multiple patches.</p>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+
         <section>
             <h2 class="mb-3 text-base font-semibold text-slate-200">Stats by Split</h2>
             <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
